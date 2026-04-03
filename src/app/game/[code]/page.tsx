@@ -233,32 +233,55 @@ export default function GamePage() {
             </p>
           </div>
 
-          <div className="grid grid-cols-1 gap-3 mb-6">
-            {currentQuestion.options?.map((option: string) => {
-              let style = "bg-gray-800 hover:bg-gray-700 border-gray-700";
-              if (phase === "result") {
-                if (option === correctAnswer) {
-                  style = "bg-green-900/70 border-green-500 text-green-200";
-                } else if (option === selectedAnswer && option !== correctAnswer) {
-                  style = "bg-red-900/70 border-red-500 text-red-200";
-                } else {
-                  style = "bg-gray-800 border-gray-700 opacity-50";
+          {isHost ? (
+            <div className="grid grid-cols-1 gap-3 mb-6">
+              {currentQuestion.options?.map((option: string) => {
+                let style = "border-gray-700 bg-gray-800 opacity-60";
+                if (phase === "result") {
+                  if (option === correctAnswer) {
+                    style = "bg-green-900/70 border-green-500 text-green-200";
+                  } else {
+                    style = "bg-gray-800 border-gray-700 opacity-40";
+                  }
                 }
-              } else if (option === selectedAnswer) {
-                style = "bg-purple-900/70 border-purple-500";
-              }
-              return (
-                <button
-                  key={option}
-                  onClick={() => submitAnswer(option)}
-                  disabled={!!selectedAnswer || phase === "result"}
-                  className={`w-full px-6 py-4 rounded-xl border text-left font-medium transition-all ${style}`}
-                >
-                  {option}
-                </button>
-              );
-            })}
-          </div>
+                return (
+                  <div
+                    key={option}
+                    className={`w-full px-6 py-4 rounded-xl border text-left font-medium ${style}`}
+                  >
+                    {option}
+                  </div>
+                );
+              })}
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 gap-3 mb-6">
+              {currentQuestion.options?.map((option: string) => {
+                let style = "bg-gray-800 hover:bg-gray-700 border-gray-700";
+                if (phase === "result") {
+                  if (option === correctAnswer) {
+                    style = "bg-green-900/70 border-green-500 text-green-200";
+                  } else if (option === selectedAnswer && option !== correctAnswer) {
+                    style = "bg-red-900/70 border-red-500 text-red-200";
+                  } else {
+                    style = "bg-gray-800 border-gray-700 opacity-50";
+                  }
+                } else if (option === selectedAnswer) {
+                  style = "bg-purple-900/70 border-purple-500";
+                }
+                return (
+                  <button
+                    key={option}
+                    onClick={() => submitAnswer(option)}
+                    disabled={!!selectedAnswer || phase === "result"}
+                    className={`w-full px-6 py-4 rounded-xl border text-left font-medium transition-all ${style}`}
+                  >
+                    {option}
+                  </button>
+                );
+              })}
+            </div>
+          )}
 
           {phase === "result" && (
             <div className="mb-4">
