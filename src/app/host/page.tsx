@@ -16,6 +16,7 @@ export default function HostPage() {
   const [category, setCategory] = useState<"anime" | "tv">("anime");
   const [difficulty, setDifficulty] = useState(1);
   const [questionCount, setQuestionCount] = useState(10);
+  const [topics, setTopics] = useState("");
   const [gameCode, setGameCode] = useState("");
   const [gameId, setGameId] = useState("");
   const [loading, setLoading] = useState(false);
@@ -38,6 +39,7 @@ export default function HostPage() {
         category,
         difficulty,
         question_count: questionCount,
+        topics,
       });
       const data = res.data;
       setGameCode(data.code);
@@ -102,6 +104,22 @@ export default function HostPage() {
                 placeholder="Enter your name"
                 className="w-full px-4 py-3 bg-gray-800 border border-gray-700 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:border-purple-500"
               />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-300 mb-2">
+                Specific shows or animes{" "}
+                <span className="text-gray-500 font-normal">(optional)</span>
+              </label>
+              <input
+                type="text"
+                value={topics}
+                onChange={(e) => setTopics(e.target.value)}
+                placeholder="e.g. Naruto, Death Note, One Piece"
+                className="w-full px-4 py-3 bg-gray-800 border border-gray-700 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:border-purple-500"
+              />
+              <p className="text-gray-500 text-xs mt-1">
+                Separate multiple shows with commas. Leave blank for any {category === "anime" ? "anime" : "TV show"}.
+              </p>
             </div>
 
             <div>
