@@ -122,26 +122,28 @@ export default function HostPage() {
               </p>
             </div>
 
-            <div>
-              <label className="block text-sm font-medium text-gray-300 mb-2">
-                Category
-              </label>
-              <div className="grid grid-cols-2 gap-3">
-                {(["anime", "tv"] as const).map((cat) => (
-                  <button
-                    key={cat}
-                    onClick={() => setCategory(cat)}
-                    className={`py-3 rounded-lg font-medium transition-colors ${
-                      category === cat
-                        ? "bg-purple-600 text-white"
-                        : "bg-gray-800 text-gray-300 hover:bg-gray-700"
-                    }`}
-                  >
-                    {cat === "anime" ? "Anime" : "TV Shows"}
-                  </button>
-                ))}
+            {!topics.trim() && (
+              <div>
+                <label className="block text-sm font-medium text-gray-300 mb-2">
+                  Category
+                </label>
+                <div className="grid grid-cols-2 gap-3">
+                  {(["anime", "tv"] as const).map((cat) => (
+                    <button
+                      key={cat}
+                      onClick={() => setCategory(cat)}
+                      className={`py-3 rounded-lg font-medium transition-colors ${
+                        category === cat
+                          ? "bg-purple-600 text-white"
+                          : "bg-gray-800 text-gray-300 hover:bg-gray-700"
+                      }`}
+                    >
+                      {cat === "anime" ? "Anime" : "TV Shows"}
+                    </button>
+                  ))}
+                </div>
               </div>
-            </div>
+            )}
 
             <div>
               <label className="block text-sm font-medium text-gray-300 mb-2">
