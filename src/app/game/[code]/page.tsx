@@ -285,23 +285,32 @@ export default function GamePage() {
 
           {phase === "result" && (
             <div className="mb-4">
-              <div className={`rounded-xl p-4 text-center mb-4 ${
-                selectedAnswer === correctAnswer
-                  ? "bg-green-900/50 border border-green-600"
-                  : "bg-red-900/50 border border-red-600"
-              }`}>
-                <p className="text-lg font-bold">
-                  {selectedAnswer === correctAnswer ? "Correct!" : "Wrong!"}
-                </p>
-                {selectedAnswer !== correctAnswer && (
-                  <p className="text-sm text-gray-300 mt-1">
+              {isHost ? (
+                <div className="rounded-xl p-4 text-center mb-4 bg-gray-800 border border-gray-700">
+                  <p className="text-lg font-bold text-gray-300">Round complete</p>
+                  <p className="text-sm text-gray-500 mt-1">
                     Correct answer: <span className="text-green-400 font-semibold">{correctAnswer}</span>
                   </p>
-                )}
-                <p className="text-sm text-gray-300 mt-1">
-                  Score: <span className="font-bold text-white">{score} pts</span>
-                </p>
-              </div>
+                </div>
+              ) : (
+                <div className={`rounded-xl p-4 text-center mb-4 ${
+                  selectedAnswer === correctAnswer
+                    ? "bg-green-900/50 border border-green-600"
+                    : "bg-red-900/50 border border-red-600"
+                }`}>
+                  <p className="text-lg font-bold">
+                    {selectedAnswer === correctAnswer ? "Correct!" : "Wrong!"}
+                  </p>
+                  {selectedAnswer !== correctAnswer && (
+                    <p className="text-sm text-gray-300 mt-1">
+                      Correct answer: <span className="text-green-400 font-semibold">{correctAnswer}</span>
+                    </p>
+                  )}
+                  <p className="text-sm text-gray-300 mt-1">
+                    Score: <span className="font-bold text-white">{score} pts</span>
+                  </p>
+                </div>
+              )}
 
               {isHost && (
                 <button
@@ -311,6 +320,14 @@ export default function GamePage() {
                   {currentIndex + 1 >= questions.length ? "See Results" : "Next Question →"}
                 </button>
               )}
+
+              {!isHost && (
+                <p className="text-center text-gray-400 text-sm">
+                  Waiting for host to continue...
+                </p>
+              )}
+            </div>
+          )}
 
               {!isHost && (
                 <p className="text-center text-gray-400 text-sm">
