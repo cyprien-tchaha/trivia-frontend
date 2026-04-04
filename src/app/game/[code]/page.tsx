@@ -11,7 +11,7 @@ export default function GamePage() {
   const params = useParams();
   const router = useRouter();
   const code = (params.code as string).toUpperCase();
-  const { playerId, playerName, isHost, game } = useGameStore();
+  const { playerId, isHost } = useGameStore();
 
   const [questions, setQuestions] = useState<Question[]>([]);
   const [currentIndex, setCurrentIndex] = useState(0);
@@ -82,14 +82,14 @@ export default function GamePage() {
   useEffect(() => {
     if (phase !== "question") return;
     if (timeLeft <= 0) {
-      if (!selectedAnswer && currentQuestion) {
+      if (!selectedAnswer && currentQuestion && !isHost) {
         handleTimeout();
       }
       return;
     }
     const timer = setTimeout(() => setTimeLeft((t) => t - 1), 1000);
     return () => clearTimeout(timer);
-  }, [timeLeft, phase, selectedAnswer]);
+  }, [timeLeft, phase, selectedAnswer, isHost]);
 
   async function handleTimeout() {
     if (!currentQuestion || !playerId) return;
@@ -102,12 +102,12 @@ export default function GamePage() {
         time_taken_ms: 30000,
       });
     } catch {
-      showResult(false, currentQuestion.correct_answer || "");
+      showResult(false, currentQuestion.correct_answer ?? "");
     }
   }
 
   async function submitAnswer(answer: string) {
-    if (selectedAnswer || phase !== "question" || !currentQuestion || !playerId) return;
+    if (selectedAnswer || phase !== "question" || !currentQuestion || !playerId || isHost) return;
     setSelectedAnswer(answer);
     const timeTaken = Date.now() - answerStart;
     try {
@@ -119,7 +119,7 @@ export default function GamePage() {
       });
       showResult(res.data.correct, res.data.correct_answer ?? "", res.data.score);
     } catch {
-      showResult(false, currentQuestion.correct_answer || "");
+      showResult(false, currentQuestion.correct_answer ?? "");
     }
   }
 
@@ -152,9 +152,7 @@ export default function GamePage() {
         <div className="text-center">
           <p className="text-xl font-bold mb-4">No questions found</p>
           <p className="text-gray-400 mb-6">Questions need to be added to this game.</p>
-          <a href="/" className="px-6 py-3 bg-purple-600 rounded-lg">
-            Go Home
-          </a>
+          <a href="/" className="px-6 py-3 bg-purple-600 rounded-lg">Go Home</a>
         </div>
       </main>
     );
@@ -236,7 +234,7 @@ export default function GamePage() {
           {isHost ? (
             <div className="grid grid-cols-1 gap-3 mb-6">
               {currentQuestion.options?.map((option: string) => {
-                let style = "border-gray-700 bg-gray-800 opacity-60";
+                let style = "border-gray-700 bg-gray-800 opacity-60 cursor-default";
                 if (phase === "result") {
                   if (option === correctAnswer) {
                     style = "bg-green-900/70 border-green-500 text-green-200";
@@ -320,14 +318,6 @@ export default function GamePage() {
                   {currentIndex + 1 >= questions.length ? "See Results" : "Next Question →"}
                 </button>
               )}
-
-              {!isHost && (
-                <p className="text-center text-gray-400 text-sm">
-                  Waiting for host to continue...
-                </p>
-              )}
-            </div>
-          )}
 
               {!isHost && (
                 <p className="text-center text-gray-400 text-sm">
