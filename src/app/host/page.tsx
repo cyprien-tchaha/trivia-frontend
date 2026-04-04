@@ -34,12 +34,24 @@ export default function HostPage() {
     setLoading(true);
     setError("");
     try {
+      let finalTopics = topics.trim();
+      if (finalTopics) {
+        const validation = await api.post("/questions/validate-topics", { topics: finalTopics });
+        if (validation.data.unknown.length > 0) {
+          setError(`These shows were not found: ${validation.data.unknown.join(", ")}. Please check the spelling.`);
+          setLoading(false);
+          return;
+        }
+        if (validation.data.corrected) {
+          finalTopics = validation.data.corrected;
+        }
+      }
       const res = await api.post("/games/create", {
         host_name: hostName,
         category,
         difficulty,
         question_count: questionCount,
-        topics,
+        topics: finalTopics,
       });
       const data = res.data;
       setGameCode(data.code);
