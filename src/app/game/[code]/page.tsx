@@ -82,14 +82,40 @@ export default function GamePage() {
   useEffect(() => {
     if (phase !== "question") return;
     if (timeLeft <= 0) {
-      if (!selectedAnswer && currentQuestion && !isHost) {
-        handleTimeout();
-      }
+      if (!selectedAnswer && currentQuestion && !isHost) handleTimeout();
       return;
     }
     const timer = setTimeout(() => setTimeLeft((t) => t - 1), 1000);
     return () => clearTimeout(timer);
   }, [timeLeft, phase, selectedAnswer, isHost]);
+
+  useEffect(() => {
+    if (phase === "finished") return;
+    const poll = setInterval(async () => {
+      try {
+        const gameRes = await api.get(`/games/${code}`);
+        const gameData = gameRes.data;
+        if (gameData.status === "finished") {
+          const playersRes = await api.get(`/games/${code}/players`);
+          setPlayers(playersRes.data);
+          setPhase("finished");
+          return;
+        }
+        const serverIndex = gameData.current_question_index;
+        if (serverIndex > currentIndex && phase === "result") {
+          setCurrentIndex(serverIndex);
+          setSelectedAnswer(null);
+          setCorrectAnswer(null);
+          setTimeLeft(30);
+          setPhase("question");
+          setAnswerStart(Date.now());
+        }
+      } catch {
+        // silently ignore
+      }
+    }, 3000);
+    return () => clearInterval(poll);
+  }, [code, currentIndex, phase]);
 
   async function handleTimeout() {
     if (!currentQuestion || !playerId) return;
@@ -126,12 +152,9 @@ export default function GamePage() {
   async function nextQuestion() {
     const nextIndex = currentIndex + 1;
     if (nextIndex >= questions.length) {
-      try {
-        await api.post(`/games/${code}/finish`);
-      } catch {
-        setPhase("finished");
-      }
+      try { await api.post(`/games/${code}/finish`); } catch { setPhase("finished"); }
     } else {
+      await api.post(`/games/${code}/question/${nextIndex}`);
       gameSocket.send({ event: "next_question", question_index: nextIndex });
       const playersRes = await api.get(`/games/${code}/players`);
       gameSocket.send({ event: "score_updated", players: playersRes.data });

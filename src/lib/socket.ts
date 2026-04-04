@@ -5,11 +5,27 @@ class GameSocket {
   private handlers: MessageHandler[] = [];
   private gameCode: string = "";
   private reconnectTimer: ReturnType<typeof setTimeout> | null = null;
+  private reconnecting: boolean = false;
 
   connect(gameCode: string) {
     this.gameCode = gameCode;
-    const url = `${process.env.NEXT_PUBLIC_WS_URL || "ws://localhost:8000"}/api/games/${gameCode}/ws`;
+    this.reconnecting = false;
+    this._connect();
+  }
+
+  private _connect() {
+    if (this.ws?.readyState === WebSocket.OPEN) return;
+    const url = `${process.env.NEXT_PUBLIC_WS_URL || "ws://localhost:8000"}/api/games/${this.gameCode}/ws`;
     this.ws = new WebSocket(url);
+
+    this.ws.onopen = () => {
+      this.reconnecting = false;
+      if (this.reconnectTimer) {
+        clearTimeout(this.reconnectTimer);
+        this.reconnectTimer = null;
+      }
+    };
+
     this.ws.onmessage = (e) => {
       try {
         const data = JSON.parse(e.data);
@@ -18,14 +34,29 @@ class GameSocket {
         console.error("WS parse error", e.data);
       }
     };
+
     this.ws.onclose = () => {
-      this.reconnectTimer = setTimeout(() => this.connect(this.gameCode), 3000);
+      if (!this.reconnecting) {
+        this.reconnecting = true;
+        this.reconnectTimer = setTimeout(() => this._connect(), 2000);
+      }
+    };
+
+    this.ws.onerror = () => {
+      this.ws?.close();
     };
   }
 
   send(data: Record<string, unknown>) {
     if (this.ws?.readyState === WebSocket.OPEN) {
       this.ws.send(JSON.stringify(data));
+    } else {
+      this._connect();
+      setTimeout(() => {
+        if (this.ws?.readyState === WebSocket.OPEN) {
+          this.ws.send(JSON.stringify(data));
+        }
+      }, 1000);
     }
   }
 
@@ -37,10 +68,15 @@ class GameSocket {
   }
 
   disconnect() {
+    this.reconnecting = true;
     if (this.reconnectTimer) clearTimeout(this.reconnectTimer);
     this.ws?.close();
     this.ws = null;
     this.handlers = [];
+  }
+
+  isConnected() {
+    return this.ws?.readyState === WebSocket.OPEN;
   }
 }
 
