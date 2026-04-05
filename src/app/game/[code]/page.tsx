@@ -32,6 +32,7 @@ export default function GamePage() {
   const [phase, setPhase] = useState<"question" | "result" | "finished">("question");
   const [answerStart, setAnswerStart] = useState(Date.now());
   const [loading, setLoading] = useState(true);
+  const [resetting, setResetting] = useState(false);
 
   const currentQuestion = questions[currentIndex];
 
@@ -79,14 +80,15 @@ export default function GamePage() {
       }
       if (msg.event === "game_finished") { setPlayers(msg.players as Player[]); setPhase("finished"); }
       if (msg.event === "game_reset") {
+        setResetting(true);
         setCurrentIndex(0);
         setSelectedAnswer(null);
         setCorrectAnswer(null);
         setTimeLeft(30);
         setScore(0);
         setPlayers([]);
+        setQuestions([]);
         setPhase("question");
-        setAnswerStart(Date.now());
         (async () => {
           try {
             const gameRes = await api.get(`/games/${code}`);
@@ -99,7 +101,9 @@ export default function GamePage() {
               attempts++;
             }
             setQuestions(qs);
+            setAnswerStart(Date.now());
           } catch {}
+          finally { setResetting(false); }
         })();
       }
     });
@@ -172,6 +176,17 @@ export default function GamePage() {
     }
   }
 
+  if (resetting) return (
+    <main style={{ minHeight: "100vh", background: C.bg, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: "16px" }}>
+      <svg className="spin" width="32" height="32" viewBox="0 0 24 24" fill="none">
+        <circle cx="12" cy="12" r="10" stroke={C.border} strokeWidth="3" />
+        <path d="M12 2a10 10 0 0 1 10 10" stroke={C.accent} strokeWidth="3" strokeLinecap="round" />
+      </svg>
+      <p style={{ fontFamily: "'Syne', sans-serif", fontWeight: 700, fontSize: "16px" }}>New round loading...</p>
+      <p style={{ color: C.muted, fontSize: "13px" }}>AI is generating fresh questions</p>
+    </main>
+  );
+
   if (loading) return (
     <main style={{ minHeight: "100vh", background: C.bg, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: "16px" }}>
       <svg className="spin" width="32" height="32" viewBox="0 0 24 24" fill="none">
@@ -237,6 +252,7 @@ export default function GamePage() {
             <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
               <button
                 onClick={async () => {
+                  setResetting(true);
                   try {
                     // Reset game and scores
                     await api.post(`/games/${code}/reset`);
