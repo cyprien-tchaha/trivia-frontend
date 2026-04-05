@@ -246,7 +246,7 @@ export default function HostPage() {
             {gameCode}
           </p>
           <p className="text-gray-500 text-sm mt-3">
-            Players go to localhost:3000/play
+            Players go to trivia-frontend-gamma.vercel.app/play
           </p>
         </div>
 
