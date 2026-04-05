@@ -223,7 +223,7 @@ export default function HostPage() {
             fontSize: "clamp(2.5rem, 10vw, 3.5rem)", letterSpacing: "0.15em",
             color: C.accent, lineHeight: 1, marginBottom: "12px",
           }}>{gameCode}</p>
-          <p style={{ fontSize: "12px", color: C.muted }}>trivia-frontend-gamma.vercel.app/play</p>
+          <p style={{ fontSize: "12px", color: C.muted }}>playfanatic.app/play</p>
         </div>
 
         {/* Info */}
