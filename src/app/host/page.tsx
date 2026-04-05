@@ -30,6 +30,7 @@ export default function HostPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [questionsReady, setQuestionsReady] = useState(false);
+  const [copied, setCopied] = useState(false);
 
   useEffect(() => { return () => gameSocket.disconnect(); }, []);
 
@@ -223,7 +224,24 @@ export default function HostPage() {
             fontSize: "clamp(2.5rem, 10vw, 3.5rem)", letterSpacing: "0.15em",
             color: C.accent, lineHeight: 1, marginBottom: "12px",
           }}>{gameCode}</p>
-          <p style={{ fontSize: "12px", color: C.muted }}>playfanatic.app/play</p>
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: "8px", marginTop: "4px" }}>
+            <p style={{ fontSize: "12px", color: C.muted }}>playfanatic.app/play/{gameCode}</p>
+            <button
+              onClick={() => {
+                navigator.clipboard.writeText(`https://playfanatic.app/play/${gameCode}`);
+                setCopied(true);
+                setTimeout(() => setCopied(false), 2000);
+              }}
+              style={{
+                background: "none", border: "none", cursor: "pointer",
+                color: copied ? C.accent : C.muted, fontSize: "12px",
+                padding: "2px 8px", borderRadius: "6px",
+                transition: "color 0.15s ease",
+              }}
+            >
+              {copied ? "✓ Copied!" : "Copy link"}
+            </button>
+          </div>
         </div>
 
         {/* Info */}
