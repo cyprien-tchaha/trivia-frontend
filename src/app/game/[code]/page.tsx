@@ -53,6 +53,9 @@ export default function GamePage() {
       }
     }
     loadGame();
+    if (!gameSocket.isConnected()) {
+      gameSocket.connect(code);
+    }
 
     const unsub = gameSocket.onMessage((msg: Record<string, unknown>) => {
       if (msg.event === "answer_result") {
