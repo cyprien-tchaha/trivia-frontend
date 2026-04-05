@@ -99,6 +99,8 @@ export default function GamePage() {
   useEffect(() => {
     if (phase === "finished") return;
     const poll = setInterval(async () => {
+      // Only poll if WebSocket is not connected
+      if (gameSocket.isConnected()) return;
       try {
         const gameRes = await api.get(`/games/${code}`);
         const gameData = gameRes.data;
@@ -120,7 +122,7 @@ export default function GamePage() {
       } catch {
         // silently ignore
       }
-    }, 3000);
+    }, 10000);
     return () => clearInterval(poll);
   }, [code, currentIndex, phase]);
 
