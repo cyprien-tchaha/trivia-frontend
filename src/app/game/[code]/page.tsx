@@ -64,9 +64,12 @@ export default function GamePage() {
     if (!gameSocket.isConnected()) gameSocket.connect(code);
     const unsub = gameSocket.onMessage((msg: Record<string, unknown>) => {
       if (msg.event === "answer_result") {
-        setCorrectAnswer(msg.correct_answer as string);
+        const ca = msg.correct_answer as string;
+        if (ca) setCorrectAnswer(ca);
         setPhase("result");
-        if (!localStorage.getItem(`host_${code}`)) setScore(msg.score as number);
+        if (!localStorage.getItem(`host_${code}`)) {
+          setScore(msg.score as number);
+        }
       }
       if (msg.event === "score_updated") setPlayers(msg.players as Player[]);
       if (msg.event === "next_question") {
