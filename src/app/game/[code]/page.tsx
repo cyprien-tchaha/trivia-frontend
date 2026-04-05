@@ -56,11 +56,11 @@ export default function GamePage() {
 
     const unsub = gameSocket.onMessage((msg: Record<string, unknown>) => {
       if (msg.event === "answer_result") {
-        showResult(
-          msg.correct as boolean,
-          msg.correct_answer as string,
-          msg.score as number
-        );
+        setCorrectAnswer(msg.correct_answer as string);
+        setPhase("result");
+        if (!localStorage.getItem(`host_${(params.code as string).toUpperCase()}`)) {
+          setScore(msg.score as number);
+        }
       }
       if (msg.event === "score_updated") {
         setPlayers(msg.players as Player[]);
