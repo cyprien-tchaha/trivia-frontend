@@ -18,7 +18,6 @@ export default function HostPage() {
   const [questionCount, setQuestionCount] = useState(10);
   const [topics, setTopics] = useState("");
   const [gameCode, setGameCode] = useState("");
-  const [gameId, setGameId] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [questionsReady, setQuestionsReady] = useState(false);
@@ -28,10 +27,7 @@ export default function HostPage() {
   }, []);
 
   async function createGame() {
-    if (!hostName.trim()) {
-      setError("Please enter your name");
-      return;
-    }
+    if (!hostName.trim()) { setError("Please enter your name"); return; }
     setLoading(true);
     setError("");
     try {
@@ -39,55 +35,39 @@ export default function HostPage() {
       if (finalTopics) {
         const validation = await api.post("/questions/validate-topics", { topics: finalTopics });
         if (validation.data.unknown.length > 0) {
-          setError(`These shows were not found: ${validation.data.unknown.join(", ")}. Please check the spelling.`);
+          setError(`Not found: ${validation.data.unknown.join(", ")}. Check the spelling.`);
           setLoading(false);
           return;
         }
-        if (validation.data.corrected) {
-          finalTopics = validation.data.corrected;
-        }
+        if (validation.data.corrected) finalTopics = validation.data.corrected;
       }
       const res = await api.post("/games/create", {
-        host_name: hostName,
-        category,
-        difficulty,
-        question_count: questionCount,
-        topics: finalTopics,
+        host_name: hostName, category, difficulty,
+        question_count: questionCount, topics: finalTopics,
       });
       const data = res.data;
       setGameCode(data.code);
-      setGameId(data.game_id);
       setGame(data);
       setHost(true);
       setPlayer("host", hostName);
       localStorage.setItem(`host_${data.code}`, "true");
       api.post(`/questions/${data.game_id}/generate`).catch(console.error);
-      // Poll until questions are ready
       const pollQuestions = async () => {
         let attempts = 0;
         while (attempts < 20) {
           await new Promise((r) => setTimeout(r, 2000));
           try {
             const qRes = await api.get(`/questions/${data.game_id}`);
-            if (qRes.data.length > 0) {
-              setQuestionsReady(true);
-              return;
-            }
-          } catch {
-            // ignore
-          }
+            if (qRes.data.length > 0) { setQuestionsReady(true); return; }
+          } catch {}
           attempts++;
         }
       };
       pollQuestions();
       gameSocket.connect(data.code);
       gameSocket.onMessage((msg: Record<string, unknown>) => {
-        if (msg.event === "player_joined") {
-          addPlayer(msg.player as Player);
-        }
-        if (msg.event === "game_started") {
-          router.push(`/game/${data.code}`);
-        }
+        if (msg.event === "player_joined") addPlayer(msg.player as Player);
+        if (msg.event === "game_started") router.push(`/game/${data.code}`);
       });
       setStep("lobby");
     } catch {
@@ -98,34 +78,42 @@ export default function HostPage() {
   }
 
   async function startGame() {
-    try {
-      await api.post(`/games/${gameCode}/start`);
-    } catch {
-      setError("Failed to start game");
-    }
+    try { await api.post(`/games/${gameCode}/start`); }
+    catch { setError("Failed to start game"); }
   }
 
   const difficultyLabel = ["", "Easy", "Medium", "Hard", "Expert", "Master"];
+  const difficultyColor = ["", "var(--accent)", "#6ee7b7", "var(--accent2)", "#f97316", "var(--danger)"];
 
   if (step === "setup") {
     return (
-      <main className="flex min-h-screen flex-col items-center justify-center p-8">
-        <div className="w-full max-w-md">
-          <a href="/" className="text-gray-400 hover:text-white text-sm mb-8 block">
+      <main className="min-h-screen flex flex-col items-center justify-center p-6">
+        <div className="w-full max-w-md animate-fade-up">
+          <a href="/" className="inline-flex items-center gap-1.5 text-sm mb-8 transition-colors"
+            style={{ color: "var(--muted)" }}
+            onMouseEnter={(e) => (e.currentTarget as HTMLElement).style.color = "var(--text)"}
+            onMouseLeave={(e) => (e.currentTarget as HTMLElement).style.color = "var(--muted)"}>
             ← Back
           </a>
-          <h1 className="text-3xl font-bold mb-2">Host a Game</h1>
-          <p className="text-gray-400 mb-8">Set up your trivia session</p>
+
+          <div className="mb-8">
+            <h1 className="font-display text-4xl font-bold mb-1">
+              <span style={{ color: "var(--accent)" }}>fan</span>atic
+            </h1>
+            <p className="text-sm" style={{ color: "var(--muted)" }}>Set up your game session</p>
+          </div>
 
           {error && (
-            <div className="bg-red-900/50 border border-red-500 text-red-200 px-4 py-3 rounded-lg mb-6 text-sm">
+            <div className="rounded-xl px-4 py-3 mb-6 text-sm animate-fade-up"
+              style={{ background: "rgba(255,77,109,0.1)", border: "1px solid rgba(255,77,109,0.3)", color: "var(--danger)" }}>
               {error}
             </div>
           )}
 
-          <div className="space-y-6">
+          <div className="space-y-5">
+            {/* Host name */}
             <div>
-              <label className="block text-sm font-medium text-gray-300 mb-2">
+              <label className="block text-xs font-medium uppercase tracking-widest mb-2" style={{ color: "var(--muted)" }}>
                 Your name
               </label>
               <input
@@ -134,64 +122,69 @@ export default function HostPage() {
                 onChange={(e) => setHostName(e.target.value)}
                 onKeyDown={(e) => e.key === "Enter" && createGame()}
                 placeholder="Enter your name"
-                className="w-full px-4 py-3 bg-gray-800 border border-gray-700 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:border-purple-500"
+                className="input-field"
               />
             </div>
+
+            {/* Topics */}
             <div>
-              <label className="block text-sm font-medium text-gray-300 mb-2">
-                Specific shows or animes{" "}
-                <span className="text-gray-500 font-normal">(optional)</span>
+              <label className="block text-xs font-medium uppercase tracking-widest mb-2" style={{ color: "var(--muted)" }}>
+                Shows / Anime <span style={{ color: "var(--border)" }}>— optional</span>
               </label>
               <input
                 type="text"
                 value={topics}
                 onChange={(e) => setTopics(e.target.value)}
-                placeholder="e.g. Naruto, Death Note, One Piece"
-                className="w-full px-4 py-3 bg-gray-800 border border-gray-700 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:border-purple-500"
+                placeholder="e.g. Naruto, Breaking Bad, One Piece"
+                className="input-field"
               />
-              <p className="text-gray-500 text-xs mt-1">
-                Separate multiple shows with commas. Leave blank for any {category === "anime" ? "anime" : "TV show"}.
+              <p className="text-xs mt-1.5" style={{ color: "var(--muted)" }}>
+                Leave blank to use the category below
               </p>
             </div>
 
+            {/* Category — hidden when topics entered */}
             {!topics.trim() && (
               <div>
-                <label className="block text-sm font-medium text-gray-300 mb-2">
+                <label className="block text-xs font-medium uppercase tracking-widest mb-2" style={{ color: "var(--muted)" }}>
                   Category
                 </label>
-                <div className="grid grid-cols-2 gap-3">
+                <div className="grid grid-cols-2 gap-2">
                   {(["anime", "tv"] as const).map((cat) => (
                     <button
                       key={cat}
                       onClick={() => setCategory(cat)}
-                      className={`py-3 rounded-lg font-medium transition-colors ${
-                        category === cat
-                          ? "bg-purple-600 text-white"
-                          : "bg-gray-800 text-gray-300 hover:bg-gray-700"
-                      }`}
+                      className="py-3 rounded-xl font-display font-semibold text-sm transition-all"
+                      style={{
+                        background: category === cat ? "rgba(0,229,176,0.12)" : "var(--surface2)",
+                        border: `1.5px solid ${category === cat ? "var(--accent)" : "var(--border)"}`,
+                        color: category === cat ? "var(--accent)" : "var(--muted)",
+                      }}
                     >
-                      {cat === "anime" ? "Anime" : "TV Shows"}
+                      {cat === "anime" ? "🎌 Anime" : "📺 TV Shows"}
                     </button>
                   ))}
                 </div>
               </div>
             )}
 
+            {/* Difficulty */}
             <div>
-              <label className="block text-sm font-medium text-gray-300 mb-2">
+              <label className="block text-xs font-medium uppercase tracking-widest mb-2" style={{ color: "var(--muted)" }}>
                 Difficulty —{" "}
-                <span className="text-purple-400">{difficultyLabel[difficulty]}</span>
+                <span style={{ color: difficultyColor[difficulty] }}>{difficultyLabel[difficulty]}</span>
               </label>
               <div className="grid grid-cols-5 gap-2">
                 {[1, 2, 3, 4, 5].map((d) => (
                   <button
                     key={d}
                     onClick={() => setDifficulty(d)}
-                    className={`py-2 rounded-lg font-medium text-sm transition-colors ${
-                      difficulty === d
-                        ? "bg-purple-600 text-white"
-                        : "bg-gray-800 text-gray-300 hover:bg-gray-700"
-                    }`}
+                    className="py-2.5 rounded-xl font-display font-bold text-sm transition-all"
+                    style={{
+                      background: difficulty === d ? "rgba(0,229,176,0.12)" : "var(--surface2)",
+                      border: `1.5px solid ${difficulty === d ? difficultyColor[d] : "var(--border)"}`,
+                      color: difficulty === d ? difficultyColor[d] : "var(--muted)",
+                    }}
                   >
                     {d}
                   </button>
@@ -199,21 +192,22 @@ export default function HostPage() {
               </div>
             </div>
 
+            {/* Question count */}
             <div>
-              <label className="block text-sm font-medium text-gray-300 mb-2">
-                Number of questions —{" "}
-                <span className="text-purple-400">{questionCount}</span>
+              <label className="block text-xs font-medium uppercase tracking-widest mb-2" style={{ color: "var(--muted)" }}>
+                Questions — <span style={{ color: "var(--accent)" }}>{questionCount}</span>
               </label>
               <div className="grid grid-cols-4 gap-2">
                 {[5, 10, 15, 20].map((n) => (
                   <button
                     key={n}
                     onClick={() => setQuestionCount(n)}
-                    className={`py-2 rounded-lg font-medium text-sm transition-colors ${
-                      questionCount === n
-                        ? "bg-purple-600 text-white"
-                        : "bg-gray-800 text-gray-300 hover:bg-gray-700"
-                    }`}
+                    className="py-2.5 rounded-xl font-display font-bold text-sm transition-all"
+                    style={{
+                      background: questionCount === n ? "rgba(0,229,176,0.12)" : "var(--surface2)",
+                      border: `1.5px solid ${questionCount === n ? "var(--accent)" : "var(--border)"}`,
+                      color: questionCount === n ? "var(--accent)" : "var(--muted)",
+                    }}
                   >
                     {n}
                   </button>
@@ -224,9 +218,17 @@ export default function HostPage() {
             <button
               onClick={createGame}
               disabled={loading}
-              className="w-full py-4 bg-purple-600 hover:bg-purple-500 disabled:bg-purple-800 disabled:cursor-not-allowed rounded-lg font-semibold text-lg transition-colors"
+              className="btn-primary w-full py-4 text-base mt-2"
             >
-              {loading ? "Creating..." : "Create Game"}
+              {loading ? (
+                <span className="flex items-center justify-center gap-2">
+                  <svg className="animate-spin" width="16" height="16" viewBox="0 0 24 24" fill="none">
+                    <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" strokeOpacity="0.3" />
+                    <path d="M12 2a10 10 0 0 1 10 10" stroke="currentColor" strokeWidth="3" strokeLinecap="round" />
+                  </svg>
+                  Creating...
+                </span>
+              ) : "Create Game →"}
             </button>
           </div>
         </div>
@@ -234,50 +236,58 @@ export default function HostPage() {
     );
   }
 
+  // Lobby
   return (
-    <main className="flex min-h-screen flex-col items-center justify-center p-8">
-      <div className="w-full max-w-md">
-        <h1 className="text-3xl font-bold mb-2">Game Lobby</h1>
-        <p className="text-gray-400 mb-8">Share the code with your players</p>
-
-        <div className="bg-gray-800 rounded-2xl p-8 text-center mb-6">
-          <p className="text-gray-400 text-sm mb-2">Game Code</p>
-          <p className="text-6xl font-bold tracking-widest text-purple-400">
+    <main className="min-h-screen flex flex-col items-center justify-center p-6">
+      <div className="w-full max-w-md animate-fade-up">
+        {/* Game code card */}
+        <div className="card p-8 text-center mb-4" style={{ position: "relative", overflow: "hidden" }}>
+          <div className="absolute inset-0 pointer-events-none"
+            style={{ background: "radial-gradient(ellipse at 50% 0%, rgba(0,229,176,0.08) 0%, transparent 70%)" }} />
+          <p className="text-xs uppercase tracking-widest mb-3" style={{ color: "var(--muted)" }}>Game Code</p>
+          <p className="font-display font-bold tracking-[0.2em] mb-3"
+            style={{ fontSize: "clamp(2.5rem, 10vw, 4rem)", color: "var(--accent)", lineHeight: 1 }}>
             {gameCode}
           </p>
-          <p className="text-gray-500 text-sm mt-3">
-            Players go to trivia-frontend-gamma.vercel.app/play
+          <p className="text-xs" style={{ color: "var(--muted)" }}>
+            fanatic-trivia.vercel.app/play
           </p>
         </div>
 
-        <div className="bg-gray-800 rounded-xl p-4 mb-6">
-          <div className="flex justify-between text-sm text-gray-400 mb-3">
-            <span>Category: <span className="text-white capitalize">{category}</span></span>
-            <span>Difficulty: <span className="text-white">{difficultyLabel[difficulty]}</span></span>
-            <span>Questions: <span className="text-white">{questionCount}</span></span>
-          </div>
+        {/* Game info */}
+        <div className="card-inner px-4 py-3 mb-4 flex justify-between text-xs" style={{ color: "var(--muted)" }}>
+          <span>Category: <span style={{ color: "var(--text)" }} className="capitalize">{category}</span></span>
+          <span>Difficulty: <span style={{ color: difficultyColor[difficulty] }}>{difficultyLabel[difficulty]}</span></span>
+          <span>Questions: <span style={{ color: "var(--text)" }}>{questionCount}</span></span>
         </div>
 
-        <div className="bg-gray-800 rounded-xl p-4 mb-6">
+        {/* Players */}
+        <div className="card p-4 mb-4">
           <div className="flex items-center justify-between mb-3">
-            <h2 className="font-semibold">Players</h2>
-            <span className="text-sm text-gray-400">{players.length} joined</span>
+            <span className="font-display font-semibold text-sm">Players</span>
+            <span className="text-xs px-2 py-0.5 rounded-full"
+              style={{ background: "var(--surface2)", color: "var(--muted)", border: "1px solid var(--border)" }}>
+              {players.length} joined
+            </span>
           </div>
           {players.length === 0 ? (
-            <p className="text-gray-500 text-sm text-center py-4">
-              Waiting for players to join...
-            </p>
+            <div className="text-center py-6">
+              <div className="flex items-center justify-center gap-2 text-sm" style={{ color: "var(--muted)" }}>
+                <span className="w-2 h-2 rounded-full animate-pulse" style={{ background: "var(--accent)" }} />
+                Waiting for players...
+              </div>
+            </div>
           ) : (
             <div className="space-y-2">
-              {players.map((player: Player) => (
-                <div
-                  key={player.id}
-                  className="flex items-center gap-3 bg-gray-700 rounded-lg px-3 py-2"
-                >
-                  <div className="w-8 h-8 bg-purple-600 rounded-full flex items-center justify-center text-sm font-bold">
+              {players.map((player: Player, i) => (
+                <div key={player.id} className="flex items-center gap-3 rounded-xl px-3 py-2.5"
+                  style={{ background: "var(--surface2)", border: "1px solid var(--border)" }}>
+                  <div className="w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold font-display"
+                    style={{ background: "rgba(0,229,176,0.15)", color: "var(--accent)", border: "1px solid rgba(0,229,176,0.3)" }}>
                     {player.name[0].toUpperCase()}
                   </div>
-                  <span>{player.name}</span>
+                  <span className="text-sm font-medium">{player.name}</span>
+                  <span className="ml-auto text-xs" style={{ color: "var(--muted)" }}>#{i + 1}</span>
                 </div>
               ))}
             </div>
@@ -285,28 +295,42 @@ export default function HostPage() {
         </div>
 
         {error && (
-          <div className="bg-red-900/50 border border-red-500 text-red-200 px-4 py-3 rounded-lg mb-4 text-sm">
+          <div className="rounded-xl px-4 py-3 mb-4 text-sm"
+            style={{ background: "rgba(255,77,109,0.1)", border: "1px solid rgba(255,77,109,0.3)", color: "var(--danger)" }}>
             {error}
           </div>
         )}
 
+        {/* Questions status */}
         {!questionsReady && (
-          <div className="flex items-center justify-center gap-3 bg-gray-800 rounded-xl p-4 mb-4">
-            <div className="w-4 h-4 border-2 border-purple-500 border-t-transparent rounded-full animate-spin" />
-            <span className="text-gray-400 text-sm">Generating questions with AI...</span>
+          <div className="flex items-center gap-3 rounded-xl px-4 py-3 mb-4"
+            style={{ background: "rgba(0,229,176,0.06)", border: "1px solid rgba(0,229,176,0.15)" }}>
+            <svg className="animate-spin shrink-0" width="16" height="16" viewBox="0 0 24 24" fill="none">
+              <circle cx="12" cy="12" r="10" stroke="var(--accent)" strokeWidth="3" strokeOpacity="0.3" />
+              <path d="M12 2a10 10 0 0 1 10 10" stroke="var(--accent)" strokeWidth="3" strokeLinecap="round" />
+            </svg>
+            <span className="text-sm" style={{ color: "var(--accent)" }}>Generating questions with AI...</span>
+          </div>
+        )}
+
+        {questionsReady && (
+          <div className="flex items-center gap-3 rounded-xl px-4 py-3 mb-4"
+            style={{ background: "rgba(0,229,176,0.06)", border: "1px solid rgba(0,229,176,0.15)" }}>
+            <span style={{ color: "var(--accent)" }}>✓</span>
+            <span className="text-sm" style={{ color: "var(--accent)" }}>Questions ready!</span>
           </div>
         )}
 
         <button
           onClick={startGame}
           disabled={players.length === 0 || !questionsReady}
-          className="w-full py-4 bg-green-600 hover:bg-green-500 disabled:bg-gray-700 disabled:text-gray-500 disabled:cursor-not-allowed rounded-lg font-semibold text-lg transition-colors"
+          className="btn-primary w-full py-4 text-base"
         >
           {!questionsReady
             ? "Waiting for questions..."
             : players.length === 0
             ? "Waiting for players..."
-            : `Start Game (${players.length} players)`}
+            : `Start Game — ${players.length} player${players.length > 1 ? "s" : ""}`}
         </button>
       </div>
     </main>

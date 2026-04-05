@@ -22,23 +22,19 @@ export default function PlayPage() {
     category: string;
     difficulty: number;
     host_name: string;
+    topics: string;
   } | null>(null);
 
   const difficultyLabel = ["", "Easy", "Medium", "Hard", "Expert", "Master"];
+  const difficultyColor = ["", "var(--accent)", "#6ee7b7", "var(--accent2)", "#f97316", "var(--danger)"];
 
   useEffect(() => {
     return () => gameSocket.disconnect();
   }, []);
 
   async function joinGame() {
-    if (!gameCode.trim()) {
-      setError("Please enter a game code");
-      return;
-    }
-    if (!playerName.trim()) {
-      setError("Please enter your name");
-      return;
-    }
+    if (!gameCode.trim()) { setError("Please enter a game code"); return; }
+    if (!playerName.trim()) { setError("Please enter your name"); return; }
     setLoading(true);
     setError("");
     try {
@@ -63,6 +59,7 @@ export default function PlayPage() {
         category: game.category,
         difficulty: game.difficulty,
         host_name: game.host_name,
+        topics: game.topics || "",
       });
       const playersRes = await api.get(`/games/${gameCode.toUpperCase()}/players`);
       setLocalPlayers(playersRes.data);
@@ -95,39 +92,52 @@ export default function PlayPage() {
 
   if (step === "join") {
     return (
-      <main className="flex min-h-screen flex-col items-center justify-center p-8">
-        <div className="w-full max-w-md">
-          <a href="/" className="text-gray-400 hover:text-white text-sm mb-8 block">
+      <main className="min-h-screen flex flex-col items-center justify-center p-6">
+        <div className="w-full max-w-md animate-fade-up">
+          <a href="/"
+            className="inline-flex items-center gap-1.5 text-sm mb-8 transition-colors"
+            style={{ color: "var(--muted)" }}
+            onMouseEnter={(e) => (e.currentTarget as HTMLElement).style.color = "var(--text)"}
+            onMouseLeave={(e) => (e.currentTarget as HTMLElement).style.color = "var(--muted)"}>
             ← Back
           </a>
-          <h1 className="text-3xl font-bold mb-2">Join a Game</h1>
-          <p className="text-gray-400 mb-8">Enter the code from your host</p>
+
+          <div className="mb-8">
+            <h1 className="font-display text-4xl font-bold mb-1">
+              <span style={{ color: "var(--accent)" }}>fan</span>atic
+            </h1>
+            <p className="text-sm" style={{ color: "var(--muted)" }}>Enter the code from your host</p>
+          </div>
 
           {error && (
-            <div className="bg-red-900/50 border border-red-500 text-red-200 px-4 py-3 rounded-lg mb-6 text-sm">
+            <div className="rounded-xl px-4 py-3 mb-6 text-sm"
+              style={{ background: "rgba(255,77,109,0.1)", border: "1px solid rgba(255,77,109,0.3)", color: "var(--danger)" }}>
               {error}
             </div>
           )}
 
           <div className="space-y-4">
             <div>
-              <label className="block text-sm font-medium text-gray-300 mb-2">
-                Game code
+              <label className="block text-xs font-medium uppercase tracking-widest mb-2"
+                style={{ color: "var(--muted)" }}>
+                Game Code
               </label>
               <input
                 type="text"
                 value={gameCode}
                 onChange={(e) => setGameCode(e.target.value.toUpperCase())}
                 onKeyDown={(e) => e.key === "Enter" && joinGame()}
-                placeholder="e.g. TWUENO"
+                placeholder="XXXXXX"
                 maxLength={6}
-                className="w-full px-4 py-3 bg-gray-800 border border-gray-700 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:border-purple-500 text-center text-2xl font-bold tracking-widest uppercase"
+                className="input-field text-center tracking-[0.3em] uppercase"
+                style={{ fontSize: "1.75rem", fontFamily: "'Syne', sans-serif", fontWeight: 700, letterSpacing: "0.3em" }}
               />
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-300 mb-2">
-                Your name
+              <label className="block text-xs font-medium uppercase tracking-widest mb-2"
+                style={{ color: "var(--muted)" }}>
+                Your Name
               </label>
               <input
                 type="text"
@@ -135,16 +145,24 @@ export default function PlayPage() {
                 onChange={(e) => setPlayerName(e.target.value)}
                 onKeyDown={(e) => e.key === "Enter" && joinGame()}
                 placeholder="Enter your name"
-                className="w-full px-4 py-3 bg-gray-800 border border-gray-700 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:border-purple-500"
+                className="input-field"
               />
             </div>
 
             <button
               onClick={joinGame}
               disabled={loading}
-              className="w-full py-4 bg-purple-600 hover:bg-purple-500 disabled:bg-purple-800 disabled:cursor-not-allowed rounded-lg font-semibold text-lg transition-colors"
+              className="btn-primary w-full py-4 text-base mt-2"
             >
-              {loading ? "Joining..." : "Join Game"}
+              {loading ? (
+                <span className="flex items-center justify-center gap-2">
+                  <svg className="animate-spin" width="16" height="16" viewBox="0 0 24 24" fill="none">
+                    <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" strokeOpacity="0.3" />
+                    <path d="M12 2a10 10 0 0 1 10 10" stroke="currentColor" strokeWidth="3" strokeLinecap="round" />
+                  </svg>
+                  Joining...
+                </span>
+              ) : "Join Game →"}
             </button>
           </div>
         </div>
@@ -153,29 +171,41 @@ export default function PlayPage() {
   }
 
   return (
-    <main className="flex min-h-screen flex-col items-center justify-center p-8">
-      <div className="w-full max-w-md">
+    <main className="min-h-screen flex flex-col items-center justify-center p-6">
+      <div className="w-full max-w-md animate-fade-up">
+        {/* Player avatar */}
         <div className="text-center mb-8">
-          <div className="w-16 h-16 bg-green-600 rounded-full flex items-center justify-center mx-auto mb-4 text-2xl font-bold">
+          <div className="w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-4 font-display font-bold text-3xl animate-pulse-ring"
+            style={{
+              background: "rgba(0,229,176,0.15)",
+              border: "2px solid var(--accent)",
+              color: "var(--accent)",
+            }}>
             {playerName[0]?.toUpperCase()}
           </div>
-          <h1 className="text-2xl font-bold">{playerName}</h1>
-          <p className="text-green-400 text-sm mt-1">You're in!</p>
+          <h2 className="font-display font-bold text-2xl">{playerName}</h2>
+          <p className="text-sm mt-1" style={{ color: "var(--accent)" }}>You're in the game!</p>
         </div>
 
+        {/* Game info */}
         {gameInfo && (
-          <div className="bg-gray-800 rounded-xl p-4 mb-6">
-            <p className="text-center text-gray-400 text-sm mb-1">
-              Hosted by <span className="text-white">{gameInfo.host_name}</span>
+          <div className="card p-4 mb-4">
+            <p className="text-xs text-center mb-3" style={{ color: "var(--muted)" }}>
+              Hosted by <span style={{ color: "var(--text)" }}>{gameInfo.host_name}</span>
             </p>
-            <div className="flex justify-center gap-4 text-sm text-gray-400 mt-2">
-              <span>
-                Category:{" "}
-                <span className="text-white capitalize">{gameInfo.category}</span>
-              </span>
-              <span>
+            <div className="flex justify-center gap-4 text-xs">
+              {gameInfo.topics ? (
+                <span style={{ color: "var(--muted)" }}>
+                  Topics: <span style={{ color: "var(--text)" }}>{gameInfo.topics}</span>
+                </span>
+              ) : (
+                <span style={{ color: "var(--muted)" }}>
+                  Category: <span style={{ color: "var(--text)" }} className="capitalize">{gameInfo.category}</span>
+                </span>
+              )}
+              <span style={{ color: "var(--muted)" }}>
                 Difficulty:{" "}
-                <span className="text-white">
+                <span style={{ color: difficultyColor[gameInfo.difficulty] }}>
                   {difficultyLabel[gameInfo.difficulty]}
                 </span>
               </span>
@@ -183,38 +213,46 @@ export default function PlayPage() {
           </div>
         )}
 
-        <div className="bg-gray-800 rounded-xl p-4 mb-6">
+        {/* Players list */}
+        <div className="card p-4 mb-6">
           <div className="flex items-center justify-between mb-3">
-            <h2 className="font-semibold">Players in lobby</h2>
-            <span className="text-sm text-gray-400">{players.length} joined</span>
+            <span className="font-display font-semibold text-sm">Lobby</span>
+            <span className="text-xs px-2 py-0.5 rounded-full"
+              style={{ background: "var(--surface2)", color: "var(--muted)", border: "1px solid var(--border)" }}>
+              {players.length} joined
+            </span>
           </div>
           <div className="space-y-2">
-            {players.map((player: Player) => (
+            {players.map((player: Player, i) => (
               <div
                 key={player.id}
-                className={`flex items-center gap-3 rounded-lg px-3 py-2 ${
-                  player.id === playerId ? "bg-purple-900/50 border border-purple-700" : "bg-gray-700"
-                }`}
-              >
-                <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold ${
-                  player.id === playerId ? "bg-purple-600" : "bg-gray-600"
-                }`}>
+                className="flex items-center gap-3 rounded-xl px-3 py-2.5 transition-all"
+                style={{
+                  background: player.id === playerId ? "rgba(0,229,176,0.08)" : "var(--surface2)",
+                  border: `1px solid ${player.id === playerId ? "rgba(0,229,176,0.3)" : "var(--border)"}`,
+                }}>
+                <div className="w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold font-display"
+                  style={{
+                    background: player.id === playerId ? "rgba(0,229,176,0.2)" : "var(--surface)",
+                    color: player.id === playerId ? "var(--accent)" : "var(--muted)",
+                    border: `1px solid ${player.id === playerId ? "rgba(0,229,176,0.4)" : "var(--border)"}`,
+                  }}>
                   {player.name[0].toUpperCase()}
                 </div>
-                <span>{player.name}</span>
+                <span className="text-sm font-medium flex-1">{player.name}</span>
                 {player.id === playerId && (
-                  <span className="text-purple-400 text-xs ml-auto">You</span>
+                  <span className="text-xs font-medium" style={{ color: "var(--accent)" }}>You</span>
                 )}
+                <span className="text-xs" style={{ color: "var(--muted)" }}>#{i + 1}</span>
               </div>
             ))}
           </div>
         </div>
 
-        <div className="text-center">
-          <div className="inline-flex items-center gap-2 text-gray-400 text-sm">
-            <div className="w-2 h-2 bg-green-400 rounded-full animate-pulse"></div>
-            Waiting for host to start the game...
-          </div>
+        {/* Waiting indicator */}
+        <div className="flex items-center justify-center gap-2 text-sm" style={{ color: "var(--muted)" }}>
+          <span className="w-2 h-2 rounded-full animate-pulse" style={{ background: "var(--accent)" }} />
+          Waiting for host to start...
         </div>
       </div>
     </main>
