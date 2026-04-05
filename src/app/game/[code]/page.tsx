@@ -41,10 +41,21 @@ export default function GamePage() {
       try {
         const gameRes = await api.get(`/games/${code}`);
         const gameData = gameRes.data;
-        const questionsRes = await api.get(`/questions/${gameData.game_id}`);
-        setQuestions(questionsRes.data);
         const playersRes = await api.get(`/games/${code}/players`);
         setPlayers(playersRes.data);
+
+        // Poll until questions are ready (AI generation can take 10-15s)
+        let questions = [];
+        let attempts = 0;
+        while (questions.length === 0 && attempts < 20) {
+          const questionsRes = await api.get(`/questions/${gameData.game_id}`);
+          questions = questionsRes.data;
+          if (questions.length === 0) {
+            await new Promise((r) => setTimeout(r, 1500));
+          }
+          attempts++;
+        }
+        setQuestions(questions);
       } catch {
         console.error("Failed to load game");
       } finally {

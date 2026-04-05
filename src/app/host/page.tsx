@@ -21,6 +21,7 @@ export default function HostPage() {
   const [gameId, setGameId] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [questionsReady, setQuestionsReady] = useState(false);
 
   useEffect(() => {
     return () => gameSocket.disconnect();
@@ -61,6 +62,24 @@ export default function HostPage() {
       setPlayer("host", hostName);
       localStorage.setItem(`host_${data.code}`, "true");
       api.post(`/questions/${data.game_id}/generate`).catch(console.error);
+      // Poll until questions are ready
+      const pollQuestions = async () => {
+        let attempts = 0;
+        while (attempts < 20) {
+          await new Promise((r) => setTimeout(r, 2000));
+          try {
+            const qRes = await api.get(`/questions/${data.game_id}`);
+            if (qRes.data.length > 0) {
+              setQuestionsReady(true);
+              return;
+            }
+          } catch {
+            // ignore
+          }
+          attempts++;
+        }
+      };
+      pollQuestions();
       gameSocket.connect(data.code);
       gameSocket.onMessage((msg: Record<string, unknown>) => {
         if (msg.event === "player_joined") {
@@ -271,12 +290,23 @@ export default function HostPage() {
           </div>
         )}
 
+        {!questionsReady && (
+          <div className="flex items-center justify-center gap-3 bg-gray-800 rounded-xl p-4 mb-4">
+            <div className="w-4 h-4 border-2 border-purple-500 border-t-transparent rounded-full animate-spin" />
+            <span className="text-gray-400 text-sm">Generating questions with AI...</span>
+          </div>
+        )}
+
         <button
           onClick={startGame}
-          disabled={players.length === 0}
+          disabled={players.length === 0 || !questionsReady}
           className="w-full py-4 bg-green-600 hover:bg-green-500 disabled:bg-gray-700 disabled:text-gray-500 disabled:cursor-not-allowed rounded-lg font-semibold text-lg transition-colors"
         >
-          {players.length === 0 ? "Waiting for players..." : `Start Game (${players.length} players)`}
+          {!questionsReady
+            ? "Waiting for questions..."
+            : players.length === 0
+            ? "Waiting for players..."
+            : `Start Game (${players.length} players)`}
         </button>
       </div>
     </main>
