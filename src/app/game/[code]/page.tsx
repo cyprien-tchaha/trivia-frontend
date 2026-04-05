@@ -78,6 +78,30 @@ export default function GamePage() {
         setTimeLeft(30); setPhase("question"); setAnswerStart(Date.now());
       }
       if (msg.event === "game_finished") { setPlayers(msg.players as Player[]); setPhase("finished"); }
+      if (msg.event === "game_reset") {
+        setCurrentIndex(0);
+        setSelectedAnswer(null);
+        setCorrectAnswer(null);
+        setTimeLeft(30);
+        setScore(0);
+        setPlayers([]);
+        setPhase("question");
+        setAnswerStart(Date.now());
+        (async () => {
+          try {
+            const gameRes = await api.get(`/games/${code}`);
+            let qs: Question[] = [];
+            let attempts = 0;
+            while (qs.length === 0 && attempts < 20) {
+              await new Promise((r) => setTimeout(r, 2000));
+              const qRes = await api.get(`/questions/${gameRes.data.game_id}`);
+              qs = qRes.data;
+              attempts++;
+            }
+            setQuestions(qs);
+          } catch {}
+        })();
+      }
     });
     return unsub;
   }, [code, showResult]);
@@ -173,6 +197,14 @@ export default function GamePage() {
     const medals = ["🥇", "🥈", "🥉"];
     const medalBg = ["rgba(245,166,35,0.08)", "rgba(160,160,180,0.08)", "rgba(180,100,50,0.08)"];
     const medalBorder = ["rgba(245,166,35,0.3)", "rgba(160,160,180,0.3)", "rgba(180,100,50,0.3)"];
+
+    async function resetGame() {
+      try {
+        await api.post(`/games/${code}/reset`);
+        await api.post(`/questions/${sorted[0]?.id || "x"}/generate`).catch(() => {});
+      } catch {}
+    }
+
     return (
       <main style={{ minHeight: "100vh", background: C.bg, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: "24px", fontFamily: "'DM Sans', sans-serif" }}>
         <div style={{ width: "100%", maxWidth: "440px" }}>
@@ -181,6 +213,7 @@ export default function GamePage() {
             <h1 style={{ fontFamily: "'Syne', sans-serif", fontSize: "40px", fontWeight: 800, marginBottom: "4px" }}>Game Over</h1>
             <p style={{ color: C.muted, fontSize: "14px" }}>Final Scores</p>
           </div>
+
           <div style={{ display: "flex", flexDirection: "column", gap: "8px", marginBottom: "24px" }}>
             {sorted.map((p, i) => (
               <div key={p.id} style={{
@@ -199,11 +232,82 @@ export default function GamePage() {
               </div>
             ))}
           </div>
-          <a href="/" style={{
-            display: "block", width: "100%", padding: "16px", textAlign: "center",
-            background: C.accent, color: "#0a0a0f", borderRadius: "12px",
-            textDecoration: "none", fontFamily: "'Syne', sans-serif", fontWeight: 700, fontSize: "15px",
-          }}>Play Again</a>
+
+          {isHost ? (
+            <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
+              <button
+                onClick={async () => {
+                  try {
+                    // Reset game and scores
+                    await api.post(`/games/${code}/reset`);
+                    // Get game info to regenerate questions
+                    const gameRes = await api.get(`/games/${code}`);
+                    const gameData = gameRes.data;
+                    // Trigger new question generation
+                    await api.post(`/questions/${gameData.game_id}/generate`);
+                    // Reset local state
+                    setPhase("question");
+                    setCurrentIndex(0);
+                    setSelectedAnswer(null);
+                    setCorrectAnswer(null);
+                    setTimeLeft(30);
+                    setScore(0);
+                    setPlayers([]);
+                    // Reload questions after generation
+                    let qs: Question[] = [];
+                    let attempts = 0;
+                    while (qs.length === 0 && attempts < 20) {
+                      await new Promise((r) => setTimeout(r, 2000));
+                      const qRes = await api.get(`/questions/${gameData.game_id}`);
+                      qs = qRes.data;
+                      attempts++;
+                    }
+                    setQuestions(qs);
+                    setAnswerStart(Date.now());
+                    // Broadcast to all players
+                    gameSocket.send({ event: "game_reset", game_id: gameData.game_id });
+                  } catch (e) {
+                    console.error("Reset failed", e);
+                  }
+                }}
+                style={{
+                  width: "100%", padding: "16px", borderRadius: "12px",
+                  fontSize: "15px", fontWeight: 700, fontFamily: "'Syne', sans-serif",
+                  border: "none", background: C.accent, color: "#0a0a0f", cursor: "pointer",
+                }}
+              >
+                Play Again — Same Players
+              </button>
+              <a href="/" style={{
+                display: "block", width: "100%", padding: "16px", textAlign: "center",
+                background: C.surface, color: C.muted, borderRadius: "12px",
+                textDecoration: "none", fontFamily: "'Syne', sans-serif",
+                fontWeight: 700, fontSize: "15px",
+                border: `1px solid ${C.border}`,
+              }}>
+                New Game
+              </a>
+            </div>
+          ) : (
+            <div style={{ textAlign: "center" }}>
+              <div style={{
+                padding: "16px", borderRadius: "12px", marginBottom: "12px",
+                background: "rgba(0,229,176,0.06)", border: "1px solid rgba(0,229,176,0.15)",
+                display: "flex", alignItems: "center", justifyContent: "center", gap: "8px",
+              }}>
+                <span style={{ width: "8px", height: "8px", borderRadius: "50%", background: C.accent, display: "inline-block", animation: "pulse 2s infinite" }} />
+                <span style={{ fontSize: "14px", color: C.accent }}>Waiting for host to restart...</span>
+              </div>
+              <a href="/" style={{
+                display: "inline-block", padding: "12px 24px",
+                background: C.surface, color: C.muted, borderRadius: "10px",
+                textDecoration: "none", fontFamily: "'Syne', sans-serif",
+                fontWeight: 700, fontSize: "14px", border: `1px solid ${C.border}`,
+              }}>
+                Leave Game
+              </a>
+            </div>
+          )}
         </div>
       </main>
     );
