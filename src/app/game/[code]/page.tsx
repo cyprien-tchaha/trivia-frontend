@@ -33,7 +33,7 @@ export default function GamePage() {
   const [answerStart, setAnswerStart] = useState(Date.now());
   const [loading, setLoading] = useState(true);
   const [resetting, setResetting] = useState(false);
-
+  const [answerSubmitted, setAnswerSubmitted] = useState(false);
   const currentQuestion = questions[currentIndex];
 
   const showResult = useCallback((correct: boolean, correct_answer: string, newScore?: number) => {
@@ -67,8 +67,13 @@ export default function GamePage() {
       if (msg.event === "answer_result") {
         const ca = msg.correct_answer as string;
         if (ca) setCorrectAnswer(ca);
-        setPhase("result");
-        if (!localStorage.getItem(`host_${code}`)) {
+        const msgPlayerId = msg.player_id as string;
+        const myPlayerId = storePlayerId || localStorage.getItem(`player_id_${code}`);
+        const amHost = localStorage.getItem(`host_${code}`) === "true";
+        if (amHost) {
+          setAnswerSubmitted(true);
+        } else if (msgPlayerId === myPlayerId) {
+          setPhase("result");
           setScore(msg.score as number);
         }
       }
@@ -77,6 +82,7 @@ export default function GamePage() {
         const idx = msg.question_index as number;
         setCurrentIndex(idx); setSelectedAnswer(null); setCorrectAnswer(null);
         setTimeLeft(60); setPhase("question"); setAnswerStart(Date.now());
+        setAnswerSubmitted(false);
       }
       if (msg.event === "game_finished") { setPlayers(msg.players as Player[]); setPhase("finished"); }
       if (msg.event === "game_reset") {
@@ -458,7 +464,7 @@ export default function GamePage() {
           )}
 
           {/* Result */}
-          {phase === "result" && (
+          {(phase === "result" || (isHost && answerSubmitted)) && (
             <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
               {isHost ? (
                 <div style={{ padding: "14px", borderRadius: "12px", textAlign: "center", background: "rgba(0,229,176,0.06)", border: "1px solid rgba(0,229,176,0.2)" }}>
@@ -489,7 +495,7 @@ export default function GamePage() {
                   {currentIndex + 1 >= questions.length ? "See Results" : "Next Question →"}
                 </button>
               )}
-              {!isHost && <p style={{ textAlign: "center", color: C.muted, fontSize: "13px" }}>Waiting for host to continue...</p>}
+              {!isHost && phase === "result" && <p style={{ textAlign: "center", color: C.muted, fontSize: "13px" }}>Waiting for host to continue...</p>}
             </div>
           )}
 
