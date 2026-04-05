@@ -2,107 +2,144 @@
 
 export default function Home() {
   return (
-    <main className="flex min-h-screen flex-col items-center justify-center p-6 relative overflow-hidden">
-      {/* Background decorative elements */}
-      <div className="absolute inset-0 overflow-hidden pointer-events-none">
-        <div className="absolute top-1/4 -left-32 w-96 h-96 rounded-full opacity-20"
-          style={{ background: "radial-gradient(circle, var(--accent) 0%, transparent 70%)" }} />
-        <div className="absolute bottom-1/4 -right-32 w-96 h-96 rounded-full opacity-15"
-          style={{ background: "radial-gradient(circle, var(--accent2) 0%, transparent 70%)" }} />
-        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] rounded-full opacity-5"
-          style={{ background: "radial-gradient(circle, var(--accent) 0%, transparent 60%)" }} />
+    <main style={{
+      minHeight: "100vh",
+      background: "#0a0a0f",
+      display: "flex",
+      flexDirection: "column",
+      alignItems: "center",
+      justifyContent: "center",
+      padding: "24px",
+      fontFamily: "'DM Sans', sans-serif",
+    }}>
+      {/* Glow effects */}
+      <div style={{
+        position: "fixed", inset: 0, pointerEvents: "none", overflow: "hidden",
+      }}>
+        <div style={{
+          position: "absolute", top: "20%", left: "-10%",
+          width: "500px", height: "500px", borderRadius: "50%",
+          background: "radial-gradient(circle, rgba(0,229,176,0.07) 0%, transparent 70%)",
+        }} />
+        <div style={{
+          position: "absolute", bottom: "20%", right: "-10%",
+          width: "400px", height: "400px", borderRadius: "50%",
+          background: "radial-gradient(circle, rgba(245,166,35,0.05) 0%, transparent 70%)",
+        }} />
       </div>
 
-      <div className="relative z-10 w-full max-w-lg text-center">
+      <div style={{ position: "relative", width: "100%", maxWidth: "480px", textAlign: "center" }}>
         {/* Badge */}
-        <div className="animate-fade-up inline-flex items-center gap-2 px-3 py-1.5 rounded-full mb-8 text-xs font-medium tracking-wide"
-          style={{ background: "rgba(0,229,176,0.1)", border: "1px solid rgba(0,229,176,0.2)", color: "var(--accent)" }}>
-          <span className="w-1.5 h-1.5 rounded-full bg-current animate-pulse" />
-          AI-POWERED TRIVIA
+        <div style={{
+          display: "inline-flex", alignItems: "center", gap: "6px",
+          padding: "6px 14px", borderRadius: "999px", marginBottom: "32px",
+          background: "rgba(0,229,176,0.08)",
+          border: "1px solid rgba(0,229,176,0.2)",
+          color: "#00e5b0", fontSize: "11px", fontWeight: 600,
+          letterSpacing: "0.12em", textTransform: "uppercase",
+        }}>
+          <span style={{
+            width: "6px", height: "6px", borderRadius: "50%",
+            background: "#00e5b0", animation: "pulse 2s infinite",
+          }} />
+          AI-Powered Trivia
         </div>
 
         {/* Logo */}
-        <div className="animate-fade-up-1 mb-4">
-          <h1 className="font-display text-8xl font-800 leading-none tracking-tight mb-1"
-            style={{ fontWeight: 800 }}>
-            <span style={{ color: "var(--accent)" }}>fan</span>
-            <span style={{ color: "var(--text)" }}>atic</span>
-          </h1>
-          <div className="flex items-center justify-center gap-3 mt-3">
-            <div className="h-px flex-1" style={{ background: "var(--border)" }} />
-            <p className="text-sm tracking-widest uppercase" style={{ color: "var(--muted)" }}>
-              Trivia for obsessives
-            </p>
-            <div className="h-px flex-1" style={{ background: "var(--border)" }} />
-          </div>
-        </div>
+        <h1 style={{
+          fontFamily: "'Syne', sans-serif",
+          fontSize: "clamp(4rem, 15vw, 7rem)",
+          fontWeight: 800,
+          lineHeight: 1,
+          marginBottom: "12px",
+          letterSpacing: "-0.02em",
+        }}>
+          <span style={{ color: "#00e5b0" }}>fan</span>
+          <span style={{ color: "#f0f0f8" }}>atic</span>
+        </h1>
 
-        {/* Stats row */}
-        <div className="animate-fade-up-2 flex items-center justify-center gap-8 my-10">
+        <p style={{
+          color: "#6b6b8a", fontSize: "12px",
+          letterSpacing: "0.2em", textTransform: "uppercase",
+          marginBottom: "40px",
+        }}>
+          Trivia for obsessives
+        </p>
+
+        {/* Stats */}
+        <div style={{
+          display: "flex", justifyContent: "center", gap: "40px",
+          marginBottom: "40px",
+        }}>
           {[
             { value: "AI", label: "Generated" },
             { value: "5", label: "Difficulty levels" },
             { value: "Live", label: "Multiplayer" },
-          ].map((stat) => (
-            <div key={stat.label} className="text-center">
-              <p className="font-display text-2xl font-bold" style={{ color: "var(--accent)" }}>
-                {stat.value}
-              </p>
-              <p className="text-xs mt-0.5" style={{ color: "var(--muted)" }}>{stat.label}</p>
+          ].map((s) => (
+            <div key={s.label}>
+              <div style={{
+                fontFamily: "'Syne', sans-serif",
+                fontSize: "24px", fontWeight: 700,
+                color: "#00e5b0",
+              }}>{s.value}</div>
+              <div style={{ fontSize: "11px", color: "#6b6b8a", marginTop: "2px" }}>{s.label}</div>
             </div>
           ))}
         </div>
 
-        {/* CTA Buttons */}
-        <div className="animate-fade-up-3 flex flex-col sm:flex-row gap-3 w-full">
-          
-            <a href="/host"
-            className="btn-primary flex-1 py-4 text-base flex items-center justify-center gap-2"
+        {/* Buttons */}
+        <div style={{ display: "flex", flexDirection: "column", gap: "10px", width: "100%" }}>
+          <a href="/host" style={{
+            display: "flex", alignItems: "center", justifyContent: "center", gap: "8px",
+            padding: "16px 24px",
+            background: "#00e5b0", color: "#0a0a0f",
+            fontFamily: "'Syne', sans-serif", fontWeight: 700, fontSize: "15px",
+            borderRadius: "12px", textDecoration: "none",
+            transition: "filter 0.15s ease",
+          }}
+            onMouseEnter={(e) => (e.currentTarget as HTMLElement).style.filter = "brightness(1.1)"}
+            onMouseLeave={(e) => (e.currentTarget as HTMLElement).style.filter = "brightness(1)"}
           >
-            <svg width="18" height="18" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+            <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
             </svg>
             Host a Game
           </a>
-          
-            <a href="/play"
-            className="flex-1 py-4 text-base font-display font-bold flex items-center justify-center gap-2 rounded-xl transition-all"
-            style={{
-              background: "var(--surface)",
-              border: "1.5px solid var(--border)",
-              color: "var(--text)",
-              fontFamily: "'Syne', sans-serif",
-            }}
+          <a href="/play" style={{
+            display: "flex", alignItems: "center", justifyContent: "center", gap: "8px",
+            padding: "16px 24px",
+            background: "#13131a", color: "#f0f0f8",
+            fontFamily: "'Syne', sans-serif", fontWeight: 700, fontSize: "15px",
+            borderRadius: "12px", textDecoration: "none",
+            border: "1.5px solid #2a2a3a",
+            transition: "border-color 0.15s ease, color 0.15s ease",
+          }}
             onMouseEnter={(e) => {
-              (e.currentTarget as HTMLElement).style.borderColor = "var(--accent)";
-              (e.currentTarget as HTMLElement).style.color = "var(--accent)";
+              (e.currentTarget as HTMLElement).style.borderColor = "#00e5b0";
+              (e.currentTarget as HTMLElement).style.color = "#00e5b0";
             }}
             onMouseLeave={(e) => {
-              (e.currentTarget as HTMLElement).style.borderColor = "var(--border)";
-              (e.currentTarget as HTMLElement).style.color = "var(--text)";
+              (e.currentTarget as HTMLElement).style.borderColor = "#2a2a3a";
+              (e.currentTarget as HTMLElement).style.color = "#f0f0f8";
             }}
           >
-            <svg width="18" height="18" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+            <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M17 8l4 4m0 0l-4 4m4-4H3" />
             </svg>
             Join a Game
           </a>
         </div>
 
-        {/* Categories */}
-        <div className="animate-fade-up-3 flex items-center justify-center gap-2 mt-8 flex-wrap">
+        {/* Tags */}
+        <div style={{
+          display: "flex", justifyContent: "center", gap: "8px",
+          flexWrap: "wrap", marginTop: "32px",
+        }}>
           {["Anime", "TV Shows", "Any Show You Want"].map((tag) => (
-            <span
-              key={tag}
-              className="px-3 py-1 rounded-full text-xs"
-              style={{
-                background: "var(--surface2)",
-                border: "1px solid var(--border)",
-                color: "var(--muted)",
-              }}
-            >
-              {tag}
-            </span>
+            <span key={tag} style={{
+              padding: "4px 12px", borderRadius: "999px", fontSize: "12px",
+              background: "#1c1c27", border: "1px solid #2a2a3a", color: "#6b6b8a",
+            }}>{tag}</span>
           ))}
         </div>
       </div>

@@ -7,6 +7,12 @@ import { gameSocket } from "@/lib/socket";
 import { useGameStore } from "@/store/gameStore";
 import { Question, Player } from "@/types";
 
+const C = {
+  bg: "#0a0a0f", surface: "#13131a", surface2: "#1c1c27",
+  border: "#2a2a3a", accent: "#00e5b0", accent2: "#f5a623",
+  danger: "#ff4d6d", text: "#f0f0f8", muted: "#6b6b8a",
+};
+
 export default function GamePage() {
   const params = useParams();
   const code = (params.code as string).toUpperCase();
@@ -42,47 +48,33 @@ export default function GamePage() {
         const gameData = gameRes.data;
         const playersRes = await api.get(`/games/${code}/players`);
         setPlayers(playersRes.data);
-        let questions: Question[] = [];
+        let qs: Question[] = [];
         let attempts = 0;
-        while (questions.length === 0 && attempts < 20) {
-          const questionsRes = await api.get(`/questions/${gameData.game_id}`);
-          questions = questionsRes.data;
-          if (questions.length === 0) await new Promise((r) => setTimeout(r, 1500));
+        while (qs.length === 0 && attempts < 20) {
+          const qRes = await api.get(`/questions/${gameData.game_id}`);
+          qs = qRes.data;
+          if (qs.length === 0) await new Promise((r) => setTimeout(r, 1500));
           attempts++;
         }
-        setQuestions(questions);
-      } catch {
-        console.error("Failed to load game");
-      } finally {
-        setLoading(false);
-        setAnswerStart(Date.now());
-      }
+        setQuestions(qs);
+      } catch { console.error("Failed to load game"); }
+      finally { setLoading(false); setAnswerStart(Date.now()); }
     }
     loadGame();
     if (!gameSocket.isConnected()) gameSocket.connect(code);
-
     const unsub = gameSocket.onMessage((msg: Record<string, unknown>) => {
       if (msg.event === "answer_result") {
         setCorrectAnswer(msg.correct_answer as string);
         setPhase("result");
-        if (!localStorage.getItem(`host_${(params.code as string).toUpperCase()}`)) {
-          setScore(msg.score as number);
-        }
+        if (!localStorage.getItem(`host_${code}`)) setScore(msg.score as number);
       }
       if (msg.event === "score_updated") setPlayers(msg.players as Player[]);
       if (msg.event === "next_question") {
         const idx = msg.question_index as number;
-        setCurrentIndex(idx);
-        setSelectedAnswer(null);
-        setCorrectAnswer(null);
-        setTimeLeft(30);
-        setPhase("question");
-        setAnswerStart(Date.now());
+        setCurrentIndex(idx); setSelectedAnswer(null); setCorrectAnswer(null);
+        setTimeLeft(30); setPhase("question"); setAnswerStart(Date.now());
       }
-      if (msg.event === "game_finished") {
-        setPlayers(msg.players as Player[]);
-        setPhase("finished");
-      }
+      if (msg.event === "game_finished") { setPlayers(msg.players as Player[]); setPhase("finished"); }
     });
     return unsub;
   }, [code, showResult]);
@@ -93,8 +85,8 @@ export default function GamePage() {
       if (!selectedAnswer && currentQuestion && !isHost) handleTimeout();
       return;
     }
-    const timer = setTimeout(() => setTimeLeft((t) => t - 1), 1000);
-    return () => clearTimeout(timer);
+    const t = setTimeout(() => setTimeLeft((n) => n - 1), 1000);
+    return () => clearTimeout(t);
   }, [timeLeft, phase, selectedAnswer, isHost]);
 
   useEffect(() => {
@@ -105,19 +97,13 @@ export default function GamePage() {
         const gameRes = await api.get(`/games/${code}`);
         const gameData = gameRes.data;
         if (gameData.status === "finished") {
-          const playersRes = await api.get(`/games/${code}/players`);
-          setPlayers(playersRes.data);
-          setPhase("finished");
-          return;
+          const pr = await api.get(`/games/${code}/players`);
+          setPlayers(pr.data); setPhase("finished"); return;
         }
-        const serverIndex = gameData.current_question_index;
-        if (serverIndex > currentIndex && phase === "result") {
-          setCurrentIndex(serverIndex);
-          setSelectedAnswer(null);
-          setCorrectAnswer(null);
-          setTimeLeft(30);
-          setPhase("question");
-          setAnswerStart(Date.now());
+        const si = gameData.current_question_index;
+        if (si > currentIndex && phase === "result") {
+          setCurrentIndex(si); setSelectedAnswer(null); setCorrectAnswer(null);
+          setTimeLeft(30); setPhase("question"); setAnswerStart(Date.now());
         }
       } catch {}
     }, 10000);
@@ -129,12 +115,9 @@ export default function GamePage() {
     setSelectedAnswer("__timeout__");
     try {
       await api.post(`/games/${code}/answer`, {
-        player_id: playerId, question_id: currentQuestion.id,
-        answer: "", time_taken_ms: 30000,
+        player_id: playerId, question_id: currentQuestion.id, answer: "", time_taken_ms: 30000,
       });
-    } catch {
-      showResult(false, currentQuestion.correct_answer ?? "");
-    }
+    } catch { showResult(false, currentQuestion.correct_answer ?? ""); }
   }
 
   async function submitAnswer(answer: string) {
@@ -143,13 +126,10 @@ export default function GamePage() {
     const timeTaken = Date.now() - answerStart;
     try {
       const res = await api.post(`/games/${code}/answer`, {
-        player_id: playerId, question_id: currentQuestion.id,
-        answer, time_taken_ms: timeTaken,
+        player_id: playerId, question_id: currentQuestion.id, answer, time_taken_ms: timeTaken,
       });
       showResult(res.data.correct, res.data.correct_answer ?? "", res.data.score);
-    } catch {
-      showResult(false, currentQuestion.correct_answer ?? "");
-    }
+    } catch { showResult(false, currentQuestion.correct_answer ?? ""); }
   }
 
   async function nextQuestion() {
@@ -160,244 +140,202 @@ export default function GamePage() {
     } else {
       await api.post(`/games/${code}/question/${nextIndex}`);
       gameSocket.send({ event: "next_question", question_index: nextIndex });
-      const playersRes = await api.get(`/games/${code}/players`);
-      gameSocket.send({ event: "score_updated", players: playersRes.data });
+      const pr = await api.get(`/games/${code}/players`);
+      gameSocket.send({ event: "score_updated", players: pr.data });
     }
   }
 
-  // Loading
-  if (loading) {
-    return (
-      <main className="min-h-screen flex flex-col items-center justify-center gap-4">
-        <svg className="animate-spin" width="32" height="32" viewBox="0 0 24 24" fill="none">
-          <circle cx="12" cy="12" r="10" stroke="var(--border)" strokeWidth="3" />
-          <path d="M12 2a10 10 0 0 1 10 10" stroke="var(--accent)" strokeWidth="3" strokeLinecap="round" />
-        </svg>
-        <p className="text-sm" style={{ color: "var(--muted)" }}>Loading game...</p>
-      </main>
-    );
-  }
+  if (loading) return (
+    <main style={{ minHeight: "100vh", background: C.bg, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: "16px" }}>
+      <svg className="spin" width="32" height="32" viewBox="0 0 24 24" fill="none">
+        <circle cx="12" cy="12" r="10" stroke={C.border} strokeWidth="3" />
+        <path d="M12 2a10 10 0 0 1 10 10" stroke={C.accent} strokeWidth="3" strokeLinecap="round" />
+      </svg>
+      <p style={{ color: C.muted, fontSize: "14px" }}>Loading game...</p>
+    </main>
+  );
 
-  // No questions
-  if (questions.length === 0) {
-    return (
-      <main className="min-h-screen flex items-center justify-center p-6">
-        <div className="text-center">
-          <p className="font-display text-xl font-bold mb-2">No questions found</p>
-          <p className="text-sm mb-6" style={{ color: "var(--muted)" }}>Something went wrong generating questions.</p>
-          <a href="/" className="btn-primary px-6 py-3 inline-block">Go Home</a>
-        </div>
-      </main>
-    );
-  }
+  if (questions.length === 0) return (
+    <main style={{ minHeight: "100vh", background: C.bg, display: "flex", alignItems: "center", justifyContent: "center", padding: "24px" }}>
+      <div style={{ textAlign: "center" }}>
+        <p style={{ fontFamily: "'Syne', sans-serif", fontSize: "20px", fontWeight: 700, marginBottom: "8px" }}>No questions found</p>
+        <p style={{ color: C.muted, fontSize: "14px", marginBottom: "24px" }}>Something went wrong generating questions.</p>
+        <a href="/" style={{ padding: "12px 24px", background: C.accent, color: "#0a0a0f", borderRadius: "10px", textDecoration: "none", fontWeight: 700, fontFamily: "'Syne', sans-serif" }}>Go Home</a>
+      </div>
+    </main>
+  );
 
-  // Finished
   if (phase === "finished") {
     const sorted = [...players].sort((a, b) => b.score - a.score);
     const medals = ["🥇", "🥈", "🥉"];
-    const medalBg = [
-      "rgba(245,166,35,0.1)", "rgba(160,160,180,0.1)", "rgba(180,100,50,0.1)"
-    ];
-    const medalBorder = [
-      "rgba(245,166,35,0.35)", "rgba(160,160,180,0.35)", "rgba(180,100,50,0.35)"
-    ];
-
+    const medalBg = ["rgba(245,166,35,0.08)", "rgba(160,160,180,0.08)", "rgba(180,100,50,0.08)"];
+    const medalBorder = ["rgba(245,166,35,0.3)", "rgba(160,160,180,0.3)", "rgba(180,100,50,0.3)"];
     return (
-      <main className="min-h-screen flex flex-col items-center justify-center p-6">
-        <div className="w-full max-w-md animate-fade-up">
-          <div className="text-center mb-8">
-            <p className="text-4xl mb-3">🎉</p>
-            <h1 className="font-display text-4xl font-bold mb-1">Game Over</h1>
-            <p className="text-sm" style={{ color: "var(--muted)" }}>Final Scores</p>
+      <main style={{ minHeight: "100vh", background: C.bg, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: "24px", fontFamily: "'DM Sans', sans-serif" }}>
+        <div style={{ width: "100%", maxWidth: "440px" }}>
+          <div style={{ textAlign: "center", marginBottom: "32px" }}>
+            <div style={{ fontSize: "48px", marginBottom: "12px" }}>🎉</div>
+            <h1 style={{ fontFamily: "'Syne', sans-serif", fontSize: "40px", fontWeight: 800, marginBottom: "4px" }}>Game Over</h1>
+            <p style={{ color: C.muted, fontSize: "14px" }}>Final Scores</p>
           </div>
-
-          <div className="space-y-2 mb-8">
-            {sorted.map((player, i) => (
-              <div
-                key={player.id}
-                className="flex items-center gap-4 rounded-xl px-4 py-3 animate-fade-up"
-                style={{
-                  background: i < 3 ? medalBg[i] : "var(--surface)",
-                  border: `1px solid ${i < 3 ? medalBorder[i] : "var(--border)"}`,
-                  animationDelay: `${i * 0.08}s`,
-                }}>
-                <span className="text-xl w-8 text-center">
-                  {i < 3 ? medals[i] : <span className="font-display font-bold text-sm" style={{ color: "var(--muted)" }}>{i + 1}</span>}
+          <div style={{ display: "flex", flexDirection: "column", gap: "8px", marginBottom: "24px" }}>
+            {sorted.map((p, i) => (
+              <div key={p.id} style={{
+                display: "flex", alignItems: "center", gap: "14px",
+                padding: "14px 16px", borderRadius: "12px",
+                background: i < 3 ? medalBg[i] : C.surface,
+                border: `1px solid ${i < 3 ? medalBorder[i] : C.border}`,
+              }}>
+                <span style={{ fontSize: "22px", width: "28px", textAlign: "center" }}>
+                  {i < 3 ? medals[i] : <span style={{ fontFamily: "'Syne', sans-serif", fontWeight: 700, color: C.muted, fontSize: "14px" }}>{i + 1}</span>}
                 </span>
-                <span className="flex-1 font-medium">{player.name}</span>
-                <span className="font-display font-bold" style={{ color: i === 0 ? "var(--accent2)" : "var(--text)" }}>
-                  {player.score} <span className="text-xs font-normal" style={{ color: "var(--muted)" }}>pts</span>
+                <span style={{ flex: 1, fontWeight: 500 }}>{p.name}</span>
+                <span style={{ fontFamily: "'Syne', sans-serif", fontWeight: 700, color: i === 0 ? C.accent2 : C.text }}>
+                  {p.score} <span style={{ fontSize: "12px", fontWeight: 400, color: C.muted }}>pts</span>
                 </span>
               </div>
             ))}
           </div>
-
-          <a href="/" className="btn-primary block w-full py-4 text-base text-center">
-            Play Again
-          </a>
+          <a href="/" style={{
+            display: "block", width: "100%", padding: "16px", textAlign: "center",
+            background: C.accent, color: "#0a0a0f", borderRadius: "12px",
+            textDecoration: "none", fontFamily: "'Syne', sans-serif", fontWeight: 700, fontSize: "15px",
+          }}>Play Again</a>
         </div>
       </main>
     );
   }
 
-  // Game
   const timerPercent = (timeLeft / 30) * 100;
-  const timerColor = timeLeft > 10 ? "var(--accent)" : timeLeft > 5 ? "var(--accent2)" : "var(--danger)";
+  const timerColor = timeLeft > 10 ? C.accent : timeLeft > 5 ? C.accent2 : C.danger;
   const isCorrect = selectedAnswer === correctAnswer;
+  const circumference = 2 * Math.PI * 24;
 
   return (
-    <main className="min-h-screen flex flex-col p-4 max-w-2xl mx-auto">
+    <main style={{ minHeight: "100vh", background: C.bg, display: "flex", flexDirection: "column", padding: "16px", maxWidth: "640px", margin: "0 auto", fontFamily: "'DM Sans', sans-serif" }}>
       {/* Header */}
-      <div className="flex items-center justify-between pt-4 mb-4">
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", paddingTop: "16px", marginBottom: "16px" }}>
         <div>
-          <p className="text-xs uppercase tracking-widest" style={{ color: "var(--muted)" }}>
-            Question
-          </p>
-          <p className="font-display font-bold text-lg" style={{ color: "var(--text)" }}>
-            {currentIndex + 1}
-            <span className="font-normal text-sm" style={{ color: "var(--muted)" }}>
-              /{questions.length}
-            </span>
+          <p style={{ fontSize: "10px", letterSpacing: "0.12em", textTransform: "uppercase", color: C.muted }}>Question</p>
+          <p style={{ fontFamily: "'Syne', sans-serif", fontWeight: 700, fontSize: "20px" }}>
+            {currentIndex + 1}<span style={{ color: C.muted, fontWeight: 400, fontSize: "14px" }}>/{questions.length}</span>
           </p>
         </div>
 
-        {/* Timer circle */}
-        <div className="relative w-14 h-14">
-          <svg className="absolute inset-0 -rotate-90" width="56" height="56" viewBox="0 0 56 56">
-            <circle cx="28" cy="28" r="24" fill="none" stroke="var(--surface2)" strokeWidth="3" />
-            <circle
-              cx="28" cy="28" r="24" fill="none"
-              stroke={timerColor}
-              strokeWidth="3"
-              strokeLinecap="round"
-              strokeDasharray="150.8"
-              strokeDashoffset={150.8 * (1 - timerPercent / 100)}
+        {/* Timer */}
+        <div style={{ position: "relative", width: "56px", height: "56px" }}>
+          <svg style={{ position: "absolute", inset: 0, transform: "rotate(-90deg)" }} width="56" height="56" viewBox="0 0 56 56">
+            <circle cx="28" cy="28" r="24" fill="none" stroke={C.surface2} strokeWidth="3" />
+            <circle cx="28" cy="28" r="24" fill="none" stroke={timerColor} strokeWidth="3" strokeLinecap="round"
+              strokeDasharray={circumference}
+              strokeDashoffset={circumference * (1 - timerPercent / 100)}
               style={{ transition: "stroke-dashoffset 1s linear, stroke 0.3s ease" }}
             />
           </svg>
-          <div className="absolute inset-0 flex items-center justify-center">
-            <span className="font-display font-bold text-base" style={{ color: timerColor }}>
-              {timeLeft}
-            </span>
+          <div style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center" }}>
+            <span style={{ fontFamily: "'Syne', sans-serif", fontWeight: 700, fontSize: "16px", color: timerColor }}>{timeLeft}</span>
           </div>
         </div>
 
-        <div className="text-right">
-          <p className="text-xs uppercase tracking-widest" style={{ color: "var(--muted)" }}>Score</p>
-          <p className="font-display font-bold text-lg" style={{ color: "var(--accent)" }}>{score}</p>
+        <div style={{ textAlign: "right" }}>
+          <p style={{ fontSize: "10px", letterSpacing: "0.12em", textTransform: "uppercase", color: C.muted }}>Score</p>
+          <p style={{ fontFamily: "'Syne', sans-serif", fontWeight: 700, fontSize: "20px", color: C.accent }}>{score}</p>
         </div>
       </div>
 
-      {/* Question */}
       {currentQuestion && (
-        <div className="flex-1 flex flex-col gap-4">
-          <div className="card p-6 animate-fade-up">
-            <p className="text-lg font-medium leading-relaxed">{currentQuestion.text}</p>
+        <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: "12px" }}>
+          {/* Question */}
+          <div style={{ background: C.surface, border: `1px solid ${C.border}`, borderRadius: "16px", padding: "24px" }}>
+            <p style={{ fontSize: "17px", fontWeight: 500, lineHeight: 1.5 }}>{currentQuestion.text}</p>
           </div>
 
-          {/* Answers */}
-          <div className="grid grid-cols-1 gap-2.5 animate-fade-up-1">
+          {/* Options */}
+          <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
             {currentQuestion.options?.map((option: string) => {
-              let cls = "answer-btn";
+              let bg = C.surface2;
+              let border = C.border;
+              let color = C.text;
+              let opacity = 1;
+
               if (phase === "result") {
-                if (option === correctAnswer) cls += " correct";
-                else if (option === selectedAnswer) cls += " wrong";
-                else cls += " dimmed";
+                if (option === correctAnswer) { bg = "rgba(0,229,176,0.12)"; border = C.accent; color = C.accent; }
+                else if (option === selectedAnswer) { bg = "rgba(255,77,109,0.1)"; border = C.danger; color = C.danger; }
+                else { opacity = 0.3; }
               } else if (option === selectedAnswer) {
-                cls += " selected";
+                bg = "rgba(0,229,176,0.08)"; border = C.accent;
               }
+
+              const style = {
+                width: "100%", padding: "16px 20px", borderRadius: "12px", textAlign: "left" as const,
+                background: bg, border: `1.5px solid ${border}`, color, opacity,
+                fontSize: "15px", fontFamily: "'DM Sans', sans-serif", cursor: isHost || selectedAnswer || phase === "result" ? "default" : "pointer",
+                transition: "all 0.12s ease",
+              };
+
               return isHost ? (
-                <div key={option} className={cls} style={{ cursor: "default", opacity: phase === "result" && option !== correctAnswer ? 0.35 : 1 }}>
-                  {option}
-                </div>
+                <div key={option} style={style}>{option}</div>
               ) : (
-                <button
-                  key={option}
-                  onClick={() => submitAnswer(option)}
-                  disabled={!!selectedAnswer || phase === "result"}
-                  className={cls}
-                >
-                  {option}
-                </button>
+                <button key={option} onClick={() => submitAnswer(option)} disabled={!!selectedAnswer || phase === "result"} style={style}>{option}</button>
               );
             })}
           </div>
 
-          {/* Result feedback */}
+          {/* Result */}
           {phase === "result" && (
-            <div className="animate-fade-up-2">
+            <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
               {isHost ? (
-                <div className="rounded-xl px-4 py-3 text-center"
-                  style={{ background: "rgba(0,229,176,0.06)", border: "1px solid rgba(0,229,176,0.2)" }}>
-                  <p className="text-sm font-medium" style={{ color: "var(--muted)" }}>
-                    Correct answer: <span style={{ color: "var(--accent)" }}>{correctAnswer}</span>
+                <div style={{ padding: "14px", borderRadius: "12px", textAlign: "center", background: "rgba(0,229,176,0.06)", border: "1px solid rgba(0,229,176,0.2)" }}>
+                  <p style={{ fontSize: "13px", color: C.muted }}>
+                    Correct answer: <span style={{ color: C.accent, fontWeight: 600 }}>{correctAnswer}</span>
                   </p>
                 </div>
               ) : (
-                <div className="rounded-xl px-4 py-4 text-center"
-                  style={{
-                    background: isCorrect ? "rgba(0,229,176,0.08)" : "rgba(255,77,109,0.08)",
-                    border: `1px solid ${isCorrect ? "rgba(0,229,176,0.25)" : "rgba(255,77,109,0.25)"}`,
-                  }}>
-                  <p className="font-display font-bold text-lg mb-1"
-                    style={{ color: isCorrect ? "var(--accent)" : "var(--danger)" }}>
+                <div style={{
+                  padding: "16px", borderRadius: "12px", textAlign: "center",
+                  background: isCorrect ? "rgba(0,229,176,0.07)" : "rgba(255,77,109,0.07)",
+                  border: `1px solid ${isCorrect ? "rgba(0,229,176,0.2)" : "rgba(255,77,109,0.2)"}`,
+                }}>
+                  <p style={{ fontFamily: "'Syne', sans-serif", fontWeight: 700, fontSize: "18px", color: isCorrect ? C.accent : C.danger, marginBottom: "4px" }}>
                     {isCorrect ? "Correct!" : "Wrong!"}
                   </p>
-                  {!isCorrect && (
-                    <p className="text-sm" style={{ color: "var(--muted)" }}>
-                      Answer: <span style={{ color: "var(--accent)" }}>{correctAnswer}</span>
-                    </p>
-                  )}
-                  <p className="text-xs mt-1" style={{ color: "var(--muted)" }}>
-                    Score: <span className="font-bold" style={{ color: "var(--text)" }}>{score} pts</span>
-                  </p>
+                  {!isCorrect && <p style={{ fontSize: "13px", color: C.muted, marginBottom: "4px" }}>Answer: <span style={{ color: C.accent }}>{correctAnswer}</span></p>}
+                  <p style={{ fontSize: "12px", color: C.muted }}>Score: <span style={{ fontWeight: 700, color: C.text }}>{score} pts</span></p>
                 </div>
               )}
 
               {isHost && (
-                <button onClick={nextQuestion} className="btn-primary w-full py-4 text-base mt-3">
+                <button onClick={nextQuestion} style={{
+                  width: "100%", padding: "16px", borderRadius: "12px", fontSize: "15px", fontWeight: 700,
+                  fontFamily: "'Syne', sans-serif", border: "none",
+                  background: C.accent, color: "#0a0a0f", cursor: "pointer",
+                }}>
                   {currentIndex + 1 >= questions.length ? "See Results" : "Next Question →"}
                 </button>
               )}
-
-              {!isHost && (
-                <p className="text-center text-sm mt-3" style={{ color: "var(--muted)" }}>
-                  Waiting for host to continue...
-                </p>
-              )}
+              {!isHost && <p style={{ textAlign: "center", color: C.muted, fontSize: "13px" }}>Waiting for host to continue...</p>}
             </div>
           )}
 
           {/* Scoreboard */}
-          <div className="card p-4 animate-fade-up-3">
-            <p className="text-xs uppercase tracking-widest mb-3" style={{ color: "var(--muted)" }}>
-              Scoreboard
-            </p>
-            <div className="space-y-2">
-              {[...players]
-                .sort((a, b) => b.score - a.score)
-                .slice(0, 5)
-                .map((player, i) => (
-                  <div key={player.id} className="flex items-center gap-2.5">
-                    <span className="w-4 text-xs text-center font-display font-bold"
-                      style={{ color: i === 0 ? "var(--accent2)" : "var(--muted)" }}>
-                      {i + 1}
-                    </span>
-                    <div className="w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold font-display"
-                      style={{
-                        background: player.id === playerId ? "rgba(0,229,176,0.15)" : "var(--surface2)",
-                        color: player.id === playerId ? "var(--accent)" : "var(--muted)",
-                        border: `1px solid ${player.id === playerId ? "rgba(0,229,176,0.3)" : "var(--border)"}`,
-                      }}>
-                      {player.name[0].toUpperCase()}
-                    </div>
-                    <span className="flex-1 text-sm"
-                      style={{ color: player.id === playerId ? "var(--accent)" : "var(--text)", fontWeight: player.id === playerId ? 600 : 400 }}>
-                      {player.name}
-                    </span>
-                    <span className="font-display font-bold text-sm">{player.score}</span>
-                  </div>
-                ))}
+          <div style={{ background: C.surface, border: `1px solid ${C.border}`, borderRadius: "12px", padding: "14px" }}>
+            <p style={{ fontSize: "10px", letterSpacing: "0.12em", textTransform: "uppercase", color: C.muted, marginBottom: "10px" }}>Scoreboard</p>
+            <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
+              {[...players].sort((a, b) => b.score - a.score).slice(0, 5).map((p, i) => (
+                <div key={p.id} style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+                  <span style={{ width: "16px", fontSize: "12px", textAlign: "center", fontFamily: "'Syne', sans-serif", fontWeight: 700, color: i === 0 ? C.accent2 : C.muted }}>{i + 1}</span>
+                  <div style={{
+                    width: "24px", height: "24px", borderRadius: "50%",
+                    display: "flex", alignItems: "center", justifyContent: "center",
+                    fontSize: "11px", fontWeight: 700, fontFamily: "'Syne', sans-serif",
+                    background: p.id === playerId ? "rgba(0,229,176,0.15)" : C.surface2,
+                    color: p.id === playerId ? C.accent : C.muted,
+                    border: `1px solid ${p.id === playerId ? "rgba(0,229,176,0.3)" : C.border}`,
+                  }}>{p.name[0].toUpperCase()}</div>
+                  <span style={{ flex: 1, fontSize: "14px", color: p.id === playerId ? C.accent : C.text, fontWeight: p.id === playerId ? 600 : 400 }}>{p.name}</span>
+                  <span style={{ fontFamily: "'Syne', sans-serif", fontWeight: 700, fontSize: "14px" }}>{p.score}</span>
+                </div>
+              ))}
             </div>
           </div>
         </div>
