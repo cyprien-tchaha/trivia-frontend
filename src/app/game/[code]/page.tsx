@@ -26,7 +26,7 @@ export default function GamePage() {
   const [currentIndex, setCurrentIndex] = useState(0);
   const [selectedAnswer, setSelectedAnswer] = useState<string | null>(null);
   const [correctAnswer, setCorrectAnswer] = useState<string | null>(null);
-  const [timeLeft, setTimeLeft] = useState(30);
+  const [timeLeft, setTimeLeft] = useState(60);
   const [score, setScore] = useState(0);
   const [players, setPlayers] = useState<Player[]>([]);
   const [phase, setPhase] = useState<"question" | "result" | "finished">("question");
@@ -76,7 +76,7 @@ export default function GamePage() {
       if (msg.event === "next_question") {
         const idx = msg.question_index as number;
         setCurrentIndex(idx); setSelectedAnswer(null); setCorrectAnswer(null);
-        setTimeLeft(30); setPhase("question"); setAnswerStart(Date.now());
+        setTimeLeft(60); setPhase("question"); setAnswerStart(Date.now());
       }
       if (msg.event === "game_finished") { setPlayers(msg.players as Player[]); setPhase("finished"); }
       if (msg.event === "game_reset") {
@@ -84,7 +84,7 @@ export default function GamePage() {
         setCurrentIndex(0);
         setSelectedAnswer(null);
         setCorrectAnswer(null);
-        setTimeLeft(30);
+        setTimeLeft(60);
         setScore(0);
         setPlayers([]);
         setQuestions([]);
@@ -134,7 +134,7 @@ export default function GamePage() {
         const si = gameData.current_question_index;
         if (si > currentIndex && phase === "result") {
           setCurrentIndex(si); setSelectedAnswer(null); setCorrectAnswer(null);
-          setTimeLeft(30); setPhase("question"); setAnswerStart(Date.now());
+          setTimeLeft(60); setPhase("question"); setAnswerStart(Date.now());
         }
       } catch {}
     }, 10000);
@@ -143,24 +143,37 @@ export default function GamePage() {
 
   async function handleTimeout() {
     if (!currentQuestion || !playerId) return;
-    setSelectedAnswer("__timeout__");
-    try {
-      await api.post(`/games/${code}/answer`, {
-        player_id: playerId, question_id: currentQuestion.id, answer: "", time_taken_ms: 30000,
-      });
-    } catch { showResult(false, currentQuestion.correct_answer ?? ""); }
-  }
-
-  async function submitAnswer(answer: string) {
-    if (selectedAnswer || phase !== "question" || !currentQuestion || !playerId || isHost) return;
-    setSelectedAnswer(answer);
+    const answerToSubmit = selectedAnswer || "";
+    setSelectedAnswer(answerToSubmit || "__timeout__");
     const timeTaken = Date.now() - answerStart;
     try {
       const res = await api.post(`/games/${code}/answer`, {
-        player_id: playerId, question_id: currentQuestion.id, answer, time_taken_ms: timeTaken,
+        player_id: playerId, question_id: currentQuestion.id,
+        answer: answerToSubmit, time_taken_ms: timeTaken,
       });
       showResult(res.data.correct, res.data.correct_answer ?? "", res.data.score);
-    } catch { showResult(false, currentQuestion.correct_answer ?? ""); }
+    } catch {
+      showResult(false, currentQuestion.correct_answer ?? "");
+    }
+  }
+  async function selectAnswer(answer: string) {
+    if (phase !== "question" || !currentQuestion || !playerId || isHost) return;
+    setSelectedAnswer(answer);
+  }
+
+  async function submitAnswer() {
+    if (!selectedAnswer || phase !== "question" || !currentQuestion || !playerId || isHost) return;
+    const timeTaken = Date.now() - answerStart;
+    setPhase("result");
+    try {
+      const res = await api.post(`/games/${code}/answer`, {
+        player_id: playerId, question_id: currentQuestion.id,
+        answer: selectedAnswer, time_taken_ms: timeTaken,
+      });
+      showResult(res.data.correct, res.data.correct_answer ?? "", res.data.score);
+    } catch {
+      showResult(false, currentQuestion.correct_answer ?? "");
+    }
   }
 
   async function nextQuestion() {
@@ -224,9 +237,17 @@ export default function GamePage() {
       <main style={{ minHeight: "100vh", background: C.bg, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: "24px", fontFamily: "'DM Sans', sans-serif" }}>
         <div style={{ width: "100%", maxWidth: "440px" }}>
           <div style={{ textAlign: "center", marginBottom: "32px" }}>
-            <div style={{ fontSize: "48px", marginBottom: "12px" }}>🎉</div>
-            <h1 style={{ fontFamily: "'Syne', sans-serif", fontSize: "40px", fontWeight: 800, marginBottom: "4px" }}>Game Over</h1>
-            <p style={{ color: C.muted, fontSize: "14px" }}>Final Scores</p>
+            <div style={{ fontSize: "56px", marginBottom: "12px" }}>🏆</div>
+            <p style={{ fontSize: "11px", letterSpacing: "0.15em", textTransform: "uppercase", color: C.accent, marginBottom: "8px" }}>
+              Winner
+            </p>
+            <h1 style={{ fontFamily: "'Syne', sans-serif", fontSize: "40px", fontWeight: 800, marginBottom: "4px" }}>
+              {sorted[0]?.name}
+            </h1>
+            <p style={{ color: C.accent2, fontFamily: "'Syne', sans-serif", fontWeight: 700, fontSize: "20px", marginBottom: "4px" }}>
+              {sorted[0]?.score} pts
+            </p>
+            <p style={{ color: C.muted, fontSize: "13px" }}>Final Standings</p>
           </div>
 
           <div style={{ display: "flex", flexDirection: "column", gap: "8px", marginBottom: "24px" }}>
@@ -266,7 +287,7 @@ export default function GamePage() {
                     setCurrentIndex(0);
                     setSelectedAnswer(null);
                     setCorrectAnswer(null);
-                    setTimeLeft(30);
+                    setTimeLeft(60);
                     setScore(0);
                     setPlayers([]);
                     // Reload questions after generation
@@ -329,7 +350,7 @@ export default function GamePage() {
     );
   }
 
-  const timerPercent = (timeLeft / 30) * 100;
+  const timerPercent = (timeLeft / 60) * 100;
   const timerColor = timeLeft > 10 ? C.accent : timeLeft > 5 ? C.accent2 : C.danger;
   const isCorrect = selectedAnswer === correctAnswer;
   const circumference = 2 * Math.PI * 24;
@@ -399,10 +420,42 @@ export default function GamePage() {
               return isHost ? (
                 <div key={option} style={style}>{option}</div>
               ) : (
-                <button key={option} onClick={() => submitAnswer(option)} disabled={!!selectedAnswer || phase === "result"} style={style}>{option}</button>
+                <button
+                  key={option}
+                  onClick={() => selectAnswer(option)}
+                  disabled={phase === "result"}
+                  style={style}
+                >
+                  {option}
+                </button>
               );
             })}
           </div>
+
+          {/* Confirm answer button */}
+          {phase === "question" && !isHost && selectedAnswer && (
+            <button
+              onClick={submitAnswer}
+              style={{
+                width: "100%", padding: "14px", borderRadius: "12px",
+                fontSize: "15px", fontWeight: 700, fontFamily: "'Syne', sans-serif",
+                border: "none", background: C.accent, color: "#0a0a0f",
+                cursor: "pointer", marginBottom: "4px",
+              }}
+            >
+              Lock In Answer →
+            </button>
+          )}
+
+          {phase === "question" && !isHost && !selectedAnswer && (
+            <div style={{
+              width: "100%", padding: "14px", borderRadius: "12px",
+              fontSize: "14px", textAlign: "center",
+              color: C.muted, border: `1px dashed ${C.border}`,
+            }}>
+              Select an answer above
+            </div>
+          )}
 
           {/* Result */}
           {phase === "result" && (
