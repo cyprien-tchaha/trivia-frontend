@@ -55,6 +55,8 @@ export default function PlayPage() {
       const { player_id } = joinRes.data;
       setPlayerId(player_id);
       setPlayer(player_id, playerName);
+      localStorage.setItem(`player_id_${gameCode.toUpperCase()}`, player_id);
+      localStorage.setItem(`player_name_${gameCode.toUpperCase()}`, playerName);
       setGame(game);
       setGameInfo({
         category: game.category,
