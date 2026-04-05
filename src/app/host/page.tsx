@@ -59,6 +59,7 @@ export default function HostPage() {
       setGame(data);
       setHost(true);
       setPlayer("host", hostName);
+      localStorage.setItem(`host_${data.code}`, "true");
       api.post(`/questions/${data.game_id}/generate`).catch(console.error);
       gameSocket.connect(data.code);
       gameSocket.onMessage((msg: Record<string, unknown>) => {

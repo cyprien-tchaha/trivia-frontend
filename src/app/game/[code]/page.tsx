@@ -11,7 +11,8 @@ export default function GamePage() {
   const params = useParams();
   const router = useRouter();
   const code = (params.code as string).toUpperCase();
-  const { playerId, isHost } = useGameStore();
+  const { playerId, isHost: storeIsHost } = useGameStore();
+  const isHost = storeIsHost || (typeof window !== "undefined" && localStorage.getItem(`host_${code}`) === "true");
 
   const [questions, setQuestions] = useState<Question[]>([]);
   const [currentIndex, setCurrentIndex] = useState(0);
