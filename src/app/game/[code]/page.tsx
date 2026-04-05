@@ -508,7 +508,8 @@ export default function GamePage() {
             </div>
           )}
 
-          {/* Scoreboard */}
+          {/* Scoreboard — host only during game */}
+          {isHost && (
           <div style={{ background: C.surface, border: `1px solid ${C.border}`, borderRadius: "12px", padding: "14px" }}>
             <p style={{ fontSize: "10px", letterSpacing: "0.12em", textTransform: "uppercase", color: C.muted, marginBottom: "10px" }}>Scoreboard</p>
             <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
@@ -529,8 +530,9 @@ export default function GamePage() {
               ))}
             </div>
           </div>
-        </div>
-      )}
+          )}
+          </div>
+        )}
     </main>
   );
 }
