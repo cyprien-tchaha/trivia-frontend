@@ -29,5 +29,9 @@ body {
   to { transform: rotate(360deg); }
 }
 
+@keyframes ping {
+  75%, 100% { transform: scale(2); opacity: 0; }
+}
+
 .fade-up { animation: fadeUp 0.4s ease both; }
 .spin { animation: spin 1s linear infinite; }

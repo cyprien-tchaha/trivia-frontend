@@ -7,6 +7,50 @@ import { gameSocket } from "@/lib/socket";
 import { useGameStore } from "@/store/gameStore";
 import { Player } from "@/types";
 
+const FACTS = [
+  "The average person blinks 15–20 times per minute 👁️",
+  "Honey never expires — edible honey was found in Egyptian tombs 🍯",
+  "A group of flamingos is called a flamboyance 🦩",
+  "The word 'trivia' comes from Latin meaning 'three roads' 🛣️",
+  "Octopuses have three hearts and blue blood 🐙",
+  "The Eiffel Tower grows 15cm taller in summer due to heat 🗼",
+  "A single strand of spaghetti is called a spaghetto 🍝",
+  "Sharks are older than trees — they've existed for 450M years 🦈",
+  "The dot over a lowercase 'i' is called a tittle ✏️",
+  "Cleopatra lived closer in time to the Moon landing than to the pyramids 🌙",
+];
+
+function TriviaFact() {
+  const [fact, setFact] = useState(FACTS[Math.floor(Math.random() * FACTS.length)]);
+  const [visible, setVisible] = useState(true);
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setVisible(false);
+      setTimeout(() => {
+        setFact(FACTS[Math.floor(Math.random() * FACTS.length)]);
+        setVisible(true);
+      }, 400);
+    }, 4000);
+    return () => clearInterval(interval);
+  }, []);
+
+  return (
+    <div style={{
+      padding: "14px 16px", borderRadius: "12px",
+      background: "rgba(0,229,176,0.05)",
+      border: "1px solid rgba(0,229,176,0.12)",
+      transition: "opacity 0.4s ease",
+      opacity: visible ? 1 : 0,
+    }}>
+      <p style={{ fontSize: "10px", letterSpacing: "0.12em", textTransform: "uppercase", color: C.muted, marginBottom: "6px" }}>
+        Did you know?
+      </p>
+      <p style={{ fontSize: "13px", color: C.text, lineHeight: 1.5 }}>{fact}</p>
+    </div>
+  );
+}
+
 const C = {
   bg: "#0a0a0f", surface: "#13131a", surface2: "#1c1c27",
   border: "#2a2a3a", accent: "#00e5b0", accent2: "#f5a623",
@@ -221,10 +265,45 @@ export default function PlayPage() {
           </div>
         </div>
 
-        {/* Waiting */}
-        <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: "8px", color: C.muted, fontSize: "13px" }}>
-          <span style={{ width: "8px", height: "8px", borderRadius: "50%", background: C.accent, display: "inline-block", animation: "pulse 2s infinite" }} />
-          Waiting for host to start...
+        {/* Animated waiting section */}
+        <div style={{ textAlign: "center" }}>
+          {/* Pulsing rings */}
+          <div style={{ position: "relative", width: "80px", height: "80px", margin: "0 auto 20px" }}>
+            <div style={{
+              position: "absolute", inset: 0, borderRadius: "50%",
+              border: "2px solid rgba(0,229,176,0.4)",
+              animation: "ping 1.5s cubic-bezier(0, 0, 0.2, 1) infinite",
+            }} />
+            <div style={{
+              position: "absolute", inset: "8px", borderRadius: "50%",
+              border: "2px solid rgba(0,229,176,0.3)",
+              animation: "ping 1.5s cubic-bezier(0, 0, 0.2, 1) infinite 0.3s",
+            }} />
+            <div style={{
+              position: "absolute", inset: "16px", borderRadius: "50%",
+              border: "2px solid rgba(0,229,176,0.2)",
+              animation: "ping 1.5s cubic-bezier(0, 0, 0.2, 1) infinite 0.6s",
+            }} />
+            <div style={{
+              position: "absolute", inset: "24px", borderRadius: "50%",
+              background: "rgba(0,229,176,0.15)",
+              border: "2px solid var(--accent)",
+              display: "flex", alignItems: "center", justifyContent: "center",
+            }}>
+              <span style={{ fontSize: "16px" }}>⚡</span>
+            </div>
+          </div>
+
+          <p style={{
+            fontFamily: "'Syne', sans-serif", fontWeight: 700,
+            fontSize: "16px", marginBottom: "6px",
+          }}>Get Ready!</p>
+          <p style={{ color: C.muted, fontSize: "13px", marginBottom: "24px" }}>
+            Waiting for host to start the game...
+          </p>
+
+          {/* Fun trivia fact */}
+          <TriviaFact />
         </div>
       </div>
     </main>
