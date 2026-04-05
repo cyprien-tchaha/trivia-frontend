@@ -34,6 +34,7 @@ export default function GamePage() {
   const [loading, setLoading] = useState(true);
   const [resetting, setResetting] = useState(false);
   const [answerSubmitted, setAnswerSubmitted] = useState(false);
+  const [allAnswered, setAllAnswered] = useState(false);
   const currentQuestion = questions[currentIndex];
 
   const showResult = useCallback((correct: boolean, correct_answer: string, newScore?: number) => {
@@ -77,12 +78,19 @@ export default function GamePage() {
           setScore(msg.score as number);
         }
       }
+
+      if (msg.event === "all_answered") {
+        setAllAnswered(true);
+        setCorrectAnswer(msg.correct_answer as string);
+      }
+
       if (msg.event === "score_updated") setPlayers(msg.players as Player[]);
       if (msg.event === "next_question") {
         const idx = msg.question_index as number;
         setCurrentIndex(idx); setSelectedAnswer(null); setCorrectAnswer(null);
         setTimeLeft(60); setPhase("question"); setAnswerStart(Date.now());
         setAnswerSubmitted(false);
+        setAllAnswered(false);
       }
       if (msg.event === "game_finished") { setPlayers(msg.players as Player[]); setPhase("finished"); }
       if (msg.event === "game_reset") {
@@ -120,6 +128,7 @@ export default function GamePage() {
     if (phase !== "question") return;
     if (timeLeft <= 0) {
       if (!selectedAnswer && currentQuestion && !isHost) handleTimeout();
+      if (isHost) setAllAnswered(true);
       return;
     }
     const t = setTimeout(() => setTimeLeft((n) => n - 1), 1000);
@@ -464,7 +473,7 @@ export default function GamePage() {
           )}
 
           {/* Result */}
-          {(phase === "result" || (isHost && answerSubmitted)) && (
+          {(phase === "result" || (isHost && (allAnswered || timeLeft <= 0))) && (
             <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
               {isHost ? (
                 <div style={{ padding: "14px", borderRadius: "12px", textAlign: "center", background: "rgba(0,229,176,0.06)", border: "1px solid rgba(0,229,176,0.2)" }}>
