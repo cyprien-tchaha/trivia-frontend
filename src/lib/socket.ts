@@ -6,11 +6,26 @@ class GameSocket {
   private gameCode: string = "";
   private reconnectTimer: ReturnType<typeof setTimeout> | null = null;
   private reconnecting: boolean = false;
+  private _visibilityHandler: EventListenerOrEventListenerObject | null = null;
 
   connect(gameCode: string) {
     this.gameCode = gameCode;
     this.reconnecting = false;
     this._connect();
+    // Reconnect when tab becomes visible again
+    if (typeof document !== "undefined") {
+      if (this._visibilityHandler) document.removeEventListener("visibilitychange", this._visibilityHandler);
+      this._visibilityHandler = this.handleVisibilityChange.bind(this) as EventListenerOrEventListenerObject;
+      document.addEventListener("visibilitychange", this._visibilityHandler);
+    }
+  }
+
+  handleVisibilityChange() {
+    if (document.visibilityState === "visible" && this.gameCode) {
+      if (!this.isConnected()) {
+        this._connect();
+      }
+    }
   }
 
   private _connect() {
@@ -38,8 +53,13 @@ class GameSocket {
     this.ws.onclose = () => {
       if (!this.reconnecting) {
         this.reconnecting = true;
-        this.reconnectTimer = setTimeout(() => this._connect(), 2000);
+        // Longer delay to handle tab switching gracefully
+        this.reconnectTimer = setTimeout(() => this._connect(), 1000);
       }
+    };
+
+    this.ws.onerror = () => {
+      // Don't close on error, let onclose handle reconnect
     };
 
     this.ws.onerror = () => {
@@ -70,6 +90,9 @@ class GameSocket {
   disconnect() {
     this.reconnecting = true;
     if (this.reconnectTimer) clearTimeout(this.reconnectTimer);
+    if (typeof document !== "undefined" && this._visibilityHandler) {
+      document.removeEventListener("visibilitychange", this._visibilityHandler);
+    }
     this.ws?.close();
     this.ws = null;
     this.handlers = [];

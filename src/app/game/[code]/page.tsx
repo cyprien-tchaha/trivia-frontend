@@ -193,10 +193,19 @@ export default function GamePage() {
 
   async function nextQuestion() {
     const nextIndex = currentIndex + 1;
+    // Clear state immediately before broadcasting
+    setCorrectAnswer(null);
+    setSelectedAnswer(null);
+    setAllAnswered(false);
+    setAnswerSubmitted(false);
     if (nextIndex >= questions.length) {
       try { await api.post(`/games/${code}/finish`); }
       catch { setPhase("finished"); }
     } else {
+      setCurrentIndex(nextIndex);
+      setTimeLeft(60);
+      setPhase("question");
+      setAnswerStart(Date.now());
       await api.post(`/games/${code}/question/${nextIndex}`);
       gameSocket.send({ event: "next_question", question_index: nextIndex });
       const pr = await api.get(`/games/${code}/players`);
