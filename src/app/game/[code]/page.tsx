@@ -47,14 +47,13 @@ export default function GamePage() {
   useEffect(() => {
     async function loadGame() {
       try {
-        // Check if this player was removed (refreshed and confirmed)
         const myPlayerId = storePlayerId || localStorage.getItem(`player_id_${code}`);
 
-        // Use the isHost variable computed at component level, not a new check
+        // Check if player was removed (refreshed and confirmed leave)
         if (!isHost && myPlayerId) {
           try {
             const playerCheck = await api.get(`/games/${code}/players`);
-            const stillInGame = playerCheck.data.find((p: {id: string}) => p.id === myPlayerId);
+            const stillInGame = playerCheck.data.find((p: { id: string }) => p.id === myPlayerId);
             if (!stillInGame) {
               setKicked(true);
               setLoading(false);
@@ -77,7 +76,6 @@ export default function GamePage() {
         const playersRes = await api.get(`/games/${code}/players`);
         setPlayers(playersRes.data);
 
-        // Load questions
         let qs: Question[] = [];
         let attempts = 0;
         while (qs.length === 0 && attempts < 20) {
@@ -88,7 +86,7 @@ export default function GamePage() {
         }
         setQuestions(qs);
 
-        if (!amHost && myPlayerId) {
+        if (!isHost && myPlayerId) {
           try {
             const resumePromise = api.get(`/games/${code}/resume/${myPlayerId}`);
             const timeoutPromise = new Promise((_, reject) =>
@@ -96,11 +94,9 @@ export default function GamePage() {
             );
             const resumeRes = await Promise.race([resumePromise, timeoutPromise]) as { data: Record<string, unknown> };
             const resumeData = resumeRes.data;
-
             const idx = Number(resumeData.current_question_index) || 0;
             setCurrentIndex(idx);
             setScore(Number(resumeData.player_score) || 0);
-
             if (resumeData.already_answered) {
               setSelectedAnswer(resumeData.answer as string || "");
               setCorrectAnswer(resumeData.correct_answer as string || "");
@@ -126,9 +122,7 @@ export default function GamePage() {
       }
     }
 
-
     loadGame();
-    // Reconnect silently without broadcasting disconnect
     if (!gameSocket.isConnected()) {
       setTimeout(() => gameSocket.connect(code), 100);
     }
@@ -143,15 +137,12 @@ export default function GamePage() {
           if (ca) setCorrectAnswer(ca);
           setAnswerSubmitted(true);
         } else if (msgPlayerId === myPlayerId) {
-          // Only update from WS if phase isn't already result
-          // This prevents the flash from double updates
           setPhase((prev) => {
             if (prev !== "result") {
               if (ca) setCorrectAnswer(ca);
               setScore(msg.score as number);
               return "result";
             }
-            // Already in result, just ensure correct answer is set
             if (ca) setCorrectAnswer(ca);
             return prev;
           });
@@ -161,7 +152,6 @@ export default function GamePage() {
       if (msg.event === "all_answered") {
         setAllAnswered(true);
         setCorrectAnswer(msg.correct_answer as string);
-        // Refresh player scores from server
         (async () => {
           try {
             const pr = await api.get(`/games/${code}/players`);
@@ -171,18 +161,16 @@ export default function GamePage() {
       }
 
       if (msg.event === "score_updated") {
-        // Always fetch fresh scores from server instead of trusting broadcast data
         (async () => {
           try {
-            const gameRes = await api.get(`/games/${code}`);
             const pr = await api.get(`/games/${code}/players`);
             setPlayers(pr.data);
           } catch {}
         })();
       }
+
       if (msg.event === "next_question") {
         const idx = msg.question_index as number;
-        // Reset ALL state atomically to prevent partial updates
         setCurrentIndex(idx);
         setSelectedAnswer(null);
         setCorrectAnswer(null);
@@ -191,13 +179,18 @@ export default function GamePage() {
         setAnswerStart(Date.now());
         setAnswerSubmitted(false);
         setAllAnswered(false);
-        setScore((prev) => prev); // keep score
       }
-      if (msg.event === "game_finished") { setPlayers(msg.players as Player[]); setPhase("finished"); }
+
+      if (msg.event === "game_finished") {
+        setPlayers(msg.players as Player[]);
+        setPhase("finished");
+      }
+
       if (msg.event === "player_left") {
         const leftId = msg.player_id as string;
         setPlayers((prev) => prev.filter((p) => p.id !== leftId));
       }
+
       if (msg.event === "game_reset") {
         setResetting(true);
         setCurrentIndex(0);
@@ -261,10 +254,8 @@ export default function GamePage() {
     return () => clearInterval(poll);
   }, [code, currentIndex, phase]);
 
-  // Warn on refresh and remove player if they confirm
   useEffect(() => {
     if (phase === "finished") return;
-
     const handleBeforeUnload = (e: BeforeUnloadEvent) => {
       e.preventDefault();
       e.returnValue = "Are you sure you want to leave? You will be removed from the game.";
@@ -276,7 +267,6 @@ export default function GamePage() {
       }
       return e.returnValue;
     };
-
     window.addEventListener("beforeunload", handleBeforeUnload);
     return () => window.removeEventListener("beforeunload", handleBeforeUnload);
   }, [phase, playerId, code, isHost]);
@@ -296,6 +286,7 @@ export default function GamePage() {
       showResult(false, currentQuestion.correct_answer ?? "");
     }
   }
+
   async function selectAnswer(answer: string) {
     if (phase !== "question" || !currentQuestion || !playerId || isHost) return;
     setSelectedAnswer(answer);
@@ -304,14 +295,12 @@ export default function GamePage() {
   async function submitAnswer() {
     if (!selectedAnswer || phase !== "question" || !currentQuestion || !playerId || isHost) return;
     const timeTaken = Date.now() - answerStart;
-    // Set phase to result immediately to prevent flash
     setPhase("result");
     try {
       const res = await api.post(`/games/${code}/answer`, {
         player_id: playerId, question_id: currentQuestion.id,
         answer: selectedAnswer, time_taken_ms: timeTaken,
       });
-      // Only update if we got a valid response
       if (!res.data.duplicate) {
         setCorrectAnswer(res.data.correct_answer ?? "");
         setScore(res.data.score);
@@ -329,19 +318,16 @@ export default function GamePage() {
     setAnswerSubmitted(false);
     if (nextIndex >= questions.length) {
       try {
-        // Fetch final scores before finishing
         const pr = await api.get(`/games/${code}/players`);
         setPlayers(pr.data);
         await api.post(`/games/${code}/finish`);
-      }
-      catch { setPhase("finished"); }
+      } catch { setPhase("finished"); }
     } else {
       setCurrentIndex(nextIndex);
       setTimeLeft(60);
       setPhase("question");
       setAnswerStart(Date.now());
       await api.post(`/games/${code}/question/${nextIndex}`);
-      // Fetch fresh scores from DB
       const pr = await api.get(`/games/${code}/players`);
       setPlayers(pr.data);
       gameSocket.send({ event: "next_question", question_index: nextIndex });
@@ -403,31 +389,16 @@ export default function GamePage() {
     const medals = ["🥇", "🥈", "🥉"];
     const medalBg = ["rgba(245,166,35,0.08)", "rgba(160,160,180,0.08)", "rgba(180,100,50,0.08)"];
     const medalBorder = ["rgba(245,166,35,0.3)", "rgba(160,160,180,0.3)", "rgba(180,100,50,0.3)"];
-
-    async function resetGame() {
-      try {
-        await api.post(`/games/${code}/reset`);
-        await api.post(`/questions/${sorted[0]?.id || "x"}/generate`).catch(() => {});
-      } catch {}
-    }
-
     return (
       <main style={{ minHeight: "100vh", background: C.bg, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: "24px", fontFamily: "'DM Sans', sans-serif" }}>
         <div style={{ width: "100%", maxWidth: "440px" }}>
           <div style={{ textAlign: "center", marginBottom: "32px" }}>
             <div style={{ fontSize: "56px", marginBottom: "12px" }}>🏆</div>
-            <p style={{ fontSize: "11px", letterSpacing: "0.15em", textTransform: "uppercase", color: C.accent, marginBottom: "8px" }}>
-              Winner
-            </p>
-            <h1 style={{ fontFamily: "'Syne', sans-serif", fontSize: "40px", fontWeight: 800, marginBottom: "4px" }}>
-              {sorted[0]?.name}
-            </h1>
-            <p style={{ color: C.accent2, fontFamily: "'Syne', sans-serif", fontWeight: 700, fontSize: "20px", marginBottom: "4px" }}>
-              {sorted[0]?.score} pts
-            </p>
+            <p style={{ fontSize: "11px", letterSpacing: "0.15em", textTransform: "uppercase", color: C.accent, marginBottom: "8px" }}>Winner</p>
+            <h1 style={{ fontFamily: "'Syne', sans-serif", fontSize: "40px", fontWeight: 800, marginBottom: "4px" }}>{sorted[0]?.name}</h1>
+            <p style={{ color: C.accent2, fontFamily: "'Syne', sans-serif", fontWeight: 700, fontSize: "20px", marginBottom: "4px" }}>{sorted[0]?.score} pts</p>
             <p style={{ color: C.muted, fontSize: "13px" }}>Final Standings</p>
           </div>
-
           <div style={{ display: "flex", flexDirection: "column", gap: "8px", marginBottom: "24px" }}>
             {sorted.map((p, i) => (
               <div key={p.id} style={{
@@ -446,62 +417,45 @@ export default function GamePage() {
               </div>
             ))}
           </div>
-
           {isHost ? (
             <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
-              <button
-                onClick={async () => {
-                  setResetting(true);
-                  try {
-                    // Reset game and scores
-                    await api.post(`/games/${code}/reset`);
-                    // Get game info to regenerate questions
-                    const gameRes = await api.get(`/games/${code}`);
-                    const gameData = gameRes.data;
-                    // Trigger new question generation
-                    await api.post(`/questions/${gameData.game_id}/generate`);
-                    // Reset local state
-                    setPhase("question");
-                    setCurrentIndex(0);
-                    setSelectedAnswer(null);
-                    setCorrectAnswer(null);
-                    setTimeLeft(60);
-                    setScore(0);
-                    setPlayers([]);
-                    // Reload questions after generation
-                    let qs: Question[] = [];
-                    let attempts = 0;
-                    while (qs.length === 0 && attempts < 20) {
-                      await new Promise((r) => setTimeout(r, 2000));
-                      const qRes = await api.get(`/questions/${gameData.game_id}`);
-                      qs = qRes.data;
-                      attempts++;
-                    }
-                    setQuestions(qs);
-                    setAnswerStart(Date.now());
-                    // Broadcast to all players
-                    gameSocket.send({ event: "game_reset", game_id: gameData.game_id });
-                  } catch (e) {
-                    console.error("Reset failed", e);
+              <button onClick={async () => {
+                setResetting(true);
+                try {
+                  await api.post(`/games/${code}/reset`);
+                  const gameRes = await api.get(`/games/${code}`);
+                  const gameData = gameRes.data;
+                  await api.post(`/questions/${gameData.game_id}/generate`);
+                  setPhase("question");
+                  setCurrentIndex(0);
+                  setSelectedAnswer(null);
+                  setCorrectAnswer(null);
+                  setTimeLeft(60);
+                  setScore(0);
+                  setPlayers([]);
+                  let qs: Question[] = [];
+                  let attempts = 0;
+                  while (qs.length === 0 && attempts < 20) {
+                    await new Promise((r) => setTimeout(r, 2000));
+                    const qRes = await api.get(`/questions/${gameData.game_id}`);
+                    qs = qRes.data;
+                    attempts++;
                   }
-                }}
-                style={{
-                  width: "100%", padding: "16px", borderRadius: "12px",
-                  fontSize: "15px", fontWeight: 700, fontFamily: "'Syne', sans-serif",
-                  border: "none", background: C.accent, color: "#0a0a0f", cursor: "pointer",
-                }}
-              >
-                Play Again — Same Players
-              </button>
+                  setQuestions(qs);
+                  setAnswerStart(Date.now());
+                  gameSocket.send({ event: "game_reset", game_id: gameData.game_id });
+                } catch (e) { console.error("Reset failed", e); }
+              }} style={{
+                width: "100%", padding: "16px", borderRadius: "12px",
+                fontSize: "15px", fontWeight: 700, fontFamily: "'Syne', sans-serif",
+                border: "none", background: C.accent, color: "#0a0a0f", cursor: "pointer",
+              }}>Play Again — Same Players</button>
               <a href="/" style={{
                 display: "block", width: "100%", padding: "16px", textAlign: "center",
                 background: C.surface, color: C.muted, borderRadius: "12px",
                 textDecoration: "none", fontFamily: "'Syne', sans-serif",
-                fontWeight: 700, fontSize: "15px",
-                border: `1px solid ${C.border}`,
-              }}>
-                New Game
-              </a>
+                fontWeight: 700, fontSize: "15px", border: `1px solid ${C.border}`,
+              }}>New Game</a>
             </div>
           ) : (
             <div style={{ textAlign: "center" }}>
@@ -510,7 +464,7 @@ export default function GamePage() {
                 background: "rgba(0,229,176,0.06)", border: "1px solid rgba(0,229,176,0.15)",
                 display: "flex", alignItems: "center", justifyContent: "center", gap: "8px",
               }}>
-                <span style={{ width: "8px", height: "8px", borderRadius: "50%", background: C.accent, display: "inline-block", animation: "pulse 2s infinite" }} />
+                <span style={{ width: "8px", height: "8px", borderRadius: "50%", background: C.accent, display: "inline-block" }} />
                 <span style={{ fontSize: "14px", color: C.accent }}>Waiting for host to restart...</span>
               </div>
               <a href="/" style={{
@@ -518,9 +472,7 @@ export default function GamePage() {
                 background: C.surface, color: C.muted, borderRadius: "10px",
                 textDecoration: "none", fontFamily: "'Syne', sans-serif",
                 fontWeight: 700, fontSize: "14px", border: `1px solid ${C.border}`,
-              }}>
-                Leave Game
-              </a>
+              }}>Leave Game</a>
             </div>
           )}
         </div>
@@ -535,7 +487,6 @@ export default function GamePage() {
 
   return (
     <main style={{ minHeight: "100vh", background: C.bg, display: "flex", flexDirection: "column", padding: "16px", maxWidth: "640px", margin: "0 auto", fontFamily: "'DM Sans', sans-serif" }}>
-      {/* Header */}
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", paddingTop: "16px", marginBottom: "16px" }}>
         <div>
           <p style={{ fontSize: "10px", letterSpacing: "0.12em", textTransform: "uppercase", color: C.muted }}>Question</p>
@@ -543,8 +494,6 @@ export default function GamePage() {
             {currentIndex + 1}<span style={{ color: C.muted, fontWeight: 400, fontSize: "14px" }}>/{questions.length}</span>
           </p>
         </div>
-
-        {/* Timer */}
         <div style={{ position: "relative", width: "56px", height: "56px" }}>
           <svg style={{ position: "absolute", inset: 0, transform: "rotate(-90deg)" }} width="56" height="56" viewBox="0 0 56 56">
             <circle cx="28" cy="28" r="24" fill="none" stroke={C.surface2} strokeWidth="3" />
@@ -558,7 +507,6 @@ export default function GamePage() {
             <span style={{ fontFamily: "'Syne', sans-serif", fontWeight: 700, fontSize: "16px", color: timerColor }}>{timeLeft}</span>
           </div>
         </div>
-
         <div style={{ textAlign: "right" }}>
           <p style={{ fontSize: "10px", letterSpacing: "0.12em", textTransform: "uppercase", color: C.muted }}>Score</p>
           <p style={{ fontFamily: "'Syne', sans-serif", fontWeight: 700, fontSize: "20px", color: C.accent }}>{score}</p>
@@ -567,19 +515,16 @@ export default function GamePage() {
 
       {currentQuestion && (
         <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: "12px" }}>
-          {/* Question */}
           <div style={{ background: C.surface, border: `1px solid ${C.border}`, borderRadius: "16px", padding: "24px" }}>
             <p style={{ fontSize: "17px", fontWeight: 500, lineHeight: 1.5 }}>{currentQuestion.text}</p>
           </div>
 
-          {/* Options */}
           <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
             {currentQuestion.options?.map((option: string) => {
               let bg = C.surface2;
               let border = C.border;
               let color = C.text;
               let opacity = 1;
-
               if (phase === "result") {
                 if (option === correctAnswer) { bg = "rgba(0,229,176,0.12)"; border = C.accent; color = C.accent; }
                 else if (option === selectedAnswer) { bg = "rgba(255,77,109,0.1)"; border = C.danger; color = C.danger; }
@@ -587,42 +532,29 @@ export default function GamePage() {
               } else if (option === selectedAnswer) {
                 bg = "rgba(0,229,176,0.08)"; border = C.accent;
               }
-
               const style = {
                 width: "100%", padding: "16px 20px", borderRadius: "12px", textAlign: "left" as const,
                 background: bg, border: `1.5px solid ${border}`, color, opacity,
-                fontSize: "15px", fontFamily: "'DM Sans', sans-serif", cursor: isHost || selectedAnswer || phase === "result" ? "default" : "pointer",
+                fontSize: "15px", fontFamily: "'DM Sans', sans-serif",
+                cursor: isHost || selectedAnswer || phase === "result" ? "default" : "pointer",
                 transition: "all 0.12s ease",
               };
-
               return isHost ? (
                 <div key={option} style={style}>{option}</div>
               ) : (
-                <button
-                  key={option}
-                  onClick={() => selectAnswer(option)}
-                  disabled={phase === "result"}
-                  style={style}
-                >
+                <button key={option} onClick={() => selectAnswer(option)} disabled={phase === "result"} style={style}>
                   {option}
                 </button>
               );
             })}
           </div>
 
-          {/* Confirm answer button */}
           {phase === "question" && !isHost && selectedAnswer && (
-            <button
-              onClick={submitAnswer}
-              style={{
-                width: "100%", padding: "14px", borderRadius: "12px",
-                fontSize: "15px", fontWeight: 700, fontFamily: "'Syne', sans-serif",
-                border: "none", background: C.accent, color: "#0a0a0f",
-                cursor: "pointer", marginBottom: "4px",
-              }}
-            >
-              Lock In Answer →
-            </button>
+            <button onClick={submitAnswer} style={{
+              width: "100%", padding: "14px", borderRadius: "12px",
+              fontSize: "15px", fontWeight: 700, fontFamily: "'Syne', sans-serif",
+              border: "none", background: C.accent, color: "#0a0a0f", cursor: "pointer",
+            }}>Lock In Answer →</button>
           )}
 
           {phase === "question" && !isHost && !selectedAnswer && (
@@ -630,12 +562,9 @@ export default function GamePage() {
               width: "100%", padding: "14px", borderRadius: "12px",
               fontSize: "14px", textAlign: "center",
               color: C.muted, border: `1px dashed ${C.border}`,
-            }}>
-              Select an answer above
-            </div>
+            }}>Select an answer above</div>
           )}
 
-          {/* Result */}
           {(phase === "result" || (isHost && (allAnswered || timeLeft <= 0))) && (
             <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
               {isHost ? (
@@ -657,7 +586,6 @@ export default function GamePage() {
                   <p style={{ fontSize: "12px", color: C.muted }}>Score: <span style={{ fontWeight: 700, color: C.text }}>{score} pts</span></p>
                 </div>
               )}
-
               {isHost && (
                 <button onClick={nextQuestion} style={{
                   width: "100%", padding: "16px", borderRadius: "12px", fontSize: "15px", fontWeight: 700,
@@ -667,35 +595,36 @@ export default function GamePage() {
                   {currentIndex + 1 >= questions.length ? "See Results" : "Next Question →"}
                 </button>
               )}
-              {!isHost && phase === "result" && <p style={{ textAlign: "center", color: C.muted, fontSize: "13px" }}>Waiting for host to continue...</p>}
+              {!isHost && phase === "result" && (
+                <p style={{ textAlign: "center", color: C.muted, fontSize: "13px" }}>Waiting for host to continue...</p>
+              )}
             </div>
           )}
 
-          {/* Scoreboard — host only during game */}
           {isHost && (
-          <div style={{ background: C.surface, border: `1px solid ${C.border}`, borderRadius: "12px", padding: "14px" }}>
-            <p style={{ fontSize: "10px", letterSpacing: "0.12em", textTransform: "uppercase", color: C.muted, marginBottom: "10px" }}>Scoreboard</p>
-            <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
-              {[...players].sort((a, b) => b.score - a.score).slice(0, 5).map((p, i) => (
-                <div key={p.id} style={{ display: "flex", alignItems: "center", gap: "10px" }}>
-                  <span style={{ width: "16px", fontSize: "12px", textAlign: "center", fontFamily: "'Syne', sans-serif", fontWeight: 700, color: i === 0 ? C.accent2 : C.muted }}>{i + 1}</span>
-                  <div style={{
-                    width: "24px", height: "24px", borderRadius: "50%",
-                    display: "flex", alignItems: "center", justifyContent: "center",
-                    fontSize: "11px", fontWeight: 700, fontFamily: "'Syne', sans-serif",
-                    background: p.id === playerId ? "rgba(0,229,176,0.15)" : C.surface2,
-                    color: p.id === playerId ? C.accent : C.muted,
-                    border: `1px solid ${p.id === playerId ? "rgba(0,229,176,0.3)" : C.border}`,
-                  }}>{p.name[0].toUpperCase()}</div>
-                  <span style={{ flex: 1, fontSize: "14px", color: p.id === playerId ? C.accent : C.text, fontWeight: p.id === playerId ? 600 : 400 }}>{p.name}</span>
-                  <span style={{ fontFamily: "'Syne', sans-serif", fontWeight: 700, fontSize: "14px" }}>{p.score}</span>
-                </div>
-              ))}
+            <div style={{ background: C.surface, border: `1px solid ${C.border}`, borderRadius: "12px", padding: "14px" }}>
+              <p style={{ fontSize: "10px", letterSpacing: "0.12em", textTransform: "uppercase", color: C.muted, marginBottom: "10px" }}>Scoreboard</p>
+              <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
+                {[...players].sort((a, b) => b.score - a.score).slice(0, 5).map((p, i) => (
+                  <div key={p.id} style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+                    <span style={{ width: "16px", fontSize: "12px", textAlign: "center", fontFamily: "'Syne', sans-serif", fontWeight: 700, color: i === 0 ? C.accent2 : C.muted }}>{i + 1}</span>
+                    <div style={{
+                      width: "24px", height: "24px", borderRadius: "50%",
+                      display: "flex", alignItems: "center", justifyContent: "center",
+                      fontSize: "11px", fontWeight: 700, fontFamily: "'Syne', sans-serif",
+                      background: p.id === playerId ? "rgba(0,229,176,0.15)" : C.surface2,
+                      color: p.id === playerId ? C.accent : C.muted,
+                      border: `1px solid ${p.id === playerId ? "rgba(0,229,176,0.3)" : C.border}`,
+                    }}>{p.name[0].toUpperCase()}</div>
+                    <span style={{ flex: 1, fontSize: "14px", color: p.id === playerId ? C.accent : C.text, fontWeight: p.id === playerId ? 600 : 400 }}>{p.name}</span>
+                    <span style={{ fontFamily: "'Syne', sans-serif", fontWeight: 700, fontSize: "14px" }}>{p.score}</span>
+                  </div>
+                ))}
+              </div>
             </div>
-          </div>
           )}
-          </div>
-        )}
+        </div>
+      )}
     </main>
   );
 }
