@@ -59,8 +59,13 @@ export default function GamePage() {
           attempts++;
         }
         setQuestions(qs);
+
+        // Set correct question index
+        const idx = Number(gameData.current_question_index) || 0;
+        setCurrentIndex(idx);
+
         // Check if player already answered current question
-        const currentQ = qs[gameData.current_question_index];
+        const currentQ = qs[idx];
         if (currentQ && !isHost) {
           const myPlayerId = storePlayerId || localStorage.getItem(`player_id_${code}`);
           if (myPlayerId) {
@@ -75,8 +80,6 @@ export default function GamePage() {
             } catch {}
           }
         }
-        const idx = typeof gameData.current_question_index === "number" ? gameData.current_question_index : 0;
-        setCurrentIndex(idx);
       } catch { console.error("Failed to load game"); }
       finally { setLoading(false); setAnswerStart(Date.now()); }
     }
@@ -92,15 +95,17 @@ export default function GamePage() {
           if (ca) setCorrectAnswer(ca);
           setAnswerSubmitted(true);
         } else if (msgPlayerId === myPlayerId) {
-          // Only update from WebSocket if we don't already have a result
-          // This prevents the flash caused by double update
-          setPhase((currentPhase) => {
-            if (currentPhase !== "result") {
+          // Only update from WS if phase isn't already result
+          // This prevents the flash from double updates
+          setPhase((prev) => {
+            if (prev !== "result") {
               if (ca) setCorrectAnswer(ca);
               setScore(msg.score as number);
               return "result";
             }
-            return currentPhase;
+            // Already in result, just ensure correct answer is set
+            if (ca) setCorrectAnswer(ca);
+            return prev;
           });
         }
       }
@@ -221,13 +226,18 @@ export default function GamePage() {
   async function submitAnswer() {
     if (!selectedAnswer || phase !== "question" || !currentQuestion || !playerId || isHost) return;
     const timeTaken = Date.now() - answerStart;
+    // Set phase to result immediately to prevent flash
     setPhase("result");
     try {
       const res = await api.post(`/games/${code}/answer`, {
         player_id: playerId, question_id: currentQuestion.id,
         answer: selectedAnswer, time_taken_ms: timeTaken,
       });
-      showResult(res.data.correct, res.data.correct_answer ?? "", res.data.score);
+      // Only update if we got a valid response
+      if (!res.data.duplicate) {
+        setCorrectAnswer(res.data.correct_answer ?? "");
+        setScore(res.data.score);
+      }
     } catch {
       showResult(false, currentQuestion.correct_answer ?? "");
     }
