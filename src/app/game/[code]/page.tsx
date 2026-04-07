@@ -120,7 +120,7 @@ export default function GamePage() {
     if (!gameSocket.isConnected()) {
       setTimeout(() => gameSocket.connect(code), 100);
     }
-    
+
     const unsub = gameSocket.onMessage((msg: Record<string, unknown>) => {
       if (msg.event === "answer_result") {
         const ca = msg.correct_answer as string;
@@ -182,6 +182,10 @@ export default function GamePage() {
         setScore((prev) => prev); // keep score
       }
       if (msg.event === "game_finished") { setPlayers(msg.players as Player[]); setPhase("finished"); }
+      if (msg.event === "player_left") {
+        const leftId = msg.player_id as string;
+        setPlayers((prev) => prev.filter((p) => p.id !== leftId));
+      }
       if (msg.event === "game_reset") {
         setResetting(true);
         setCurrentIndex(0);
@@ -244,6 +248,26 @@ export default function GamePage() {
     }, 10000);
     return () => clearInterval(poll);
   }, [code, currentIndex, phase]);
+
+  // Warn on refresh and remove player if they confirm
+  useEffect(() => {
+    if (phase === "finished") return;
+
+    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+      e.preventDefault();
+      e.returnValue = "Are you sure you want to leave? You will be removed from the game.";
+      if (!isHost && playerId) {
+        navigator.sendBeacon(
+          `${process.env.NEXT_PUBLIC_API_URL}/games/${code}/leave`,
+          JSON.stringify({ player_id: playerId })
+        );
+      }
+      return e.returnValue;
+    };
+
+    window.addEventListener("beforeunload", handleBeforeUnload);
+    return () => window.removeEventListener("beforeunload", handleBeforeUnload);
+  }, [phase, playerId, code, isHost]);
 
   async function handleTimeout() {
     if (!currentQuestion || !playerId) return;
