@@ -33,6 +33,7 @@ export default function GamePage() {
   const [answerStart, setAnswerStart] = useState(Date.now());
   const [loading, setLoading] = useState(true);
   const [resetting, setResetting] = useState(false);
+  const [kicked, setKicked] = useState(false);
   const [answerSubmitted, setAnswerSubmitted] = useState(false);
   const [allAnswered, setAllAnswered] = useState(false);
   const currentQuestion = questions[currentIndex];
@@ -46,6 +47,20 @@ export default function GamePage() {
   useEffect(() => {
     async function loadGame() {
       try {
+        // Check if this player was removed (refreshed and confirmed)
+        const myPlayerId = storePlayerId || localStorage.getItem(`player_id_${code}`);
+        const amHost = localStorage.getItem(`host_${code}`) === "true";
+
+        if (!amHost && myPlayerId) {
+          const playerCheck = await api.get(`/games/${code}/players`);
+          const stillInGame = playerCheck.data.find((p: {id: string}) => p.id === myPlayerId);
+          if (!stillInGame) {
+            setKicked(true);
+            setLoading(false);
+            return;
+          }
+        }
+
         const gameRes = await api.get(`/games/${code}`);
         const gameData = gameRes.data;
 
@@ -71,10 +86,6 @@ export default function GamePage() {
         }
         setQuestions(qs);
 
-        // Sync to server state
-        const myPlayerId = storePlayerId || localStorage.getItem(`player_id_${code}`);
-        const amHost = localStorage.getItem(`host_${code}`) === "true";
-
         if (!amHost && myPlayerId) {
           try {
             const resumePromise = api.get(`/games/${code}/resume/${myPlayerId}`);
@@ -97,7 +108,6 @@ export default function GamePage() {
               setTimeLeft(60);
             }
           } catch {
-            // Resume failed or timed out — just set index and let player continue
             const idx = Number(gameData.current_question_index) || 0;
             setCurrentIndex(idx);
             setPhase("question");
@@ -345,6 +355,24 @@ export default function GamePage() {
       </svg>
       <p style={{ fontFamily: "'Syne', sans-serif", fontWeight: 700, fontSize: "16px" }}>New round loading...</p>
       <p style={{ color: C.muted, fontSize: "13px" }}>AI is generating fresh questions</p>
+    </main>
+  );
+
+  if (kicked) return (
+    <main style={{ minHeight: "100vh", background: C.bg, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: "24px", fontFamily: "'DM Sans', sans-serif" }}>
+      <div style={{ textAlign: "center", maxWidth: "400px" }}>
+        <div style={{ fontSize: "56px", marginBottom: "16px" }}>😬</div>
+        <h1 style={{ fontFamily: "'Syne', sans-serif", fontSize: "28px", fontWeight: 800, marginBottom: "8px" }}>You left the game</h1>
+        <p style={{ color: C.muted, fontSize: "15px", marginBottom: "32px", lineHeight: 1.5 }}>
+          You refreshed the page during an active game and were removed. The game continues without you.
+        </p>
+        <a href="/" style={{
+          display: "inline-block", padding: "14px 32px",
+          background: C.accent, color: "#0a0a0f",
+          borderRadius: "12px", textDecoration: "none",
+          fontFamily: "'Syne', sans-serif", fontWeight: 700, fontSize: "15px",
+        }}>Go Home</a>
+      </div>
     </main>
   );
 
