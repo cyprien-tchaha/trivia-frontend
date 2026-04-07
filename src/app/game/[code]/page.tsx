@@ -84,15 +84,23 @@ export default function GamePage() {
     const unsub = gameSocket.onMessage((msg: Record<string, unknown>) => {
       if (msg.event === "answer_result") {
         const ca = msg.correct_answer as string;
-        if (ca) setCorrectAnswer(ca);
         const msgPlayerId = msg.player_id as string;
         const myPlayerId = storePlayerId || localStorage.getItem(`player_id_${code}`);
         const amHost = localStorage.getItem(`host_${code}`) === "true";
         if (amHost) {
+          if (ca) setCorrectAnswer(ca);
           setAnswerSubmitted(true);
         } else if (msgPlayerId === myPlayerId) {
-          setPhase("result");
-          setScore(msg.score as number);
+          // Only update from WebSocket if we don't already have a result
+          // This prevents the flash caused by double update
+          setPhase((currentPhase) => {
+            if (currentPhase !== "result") {
+              if (ca) setCorrectAnswer(ca);
+              setScore(msg.score as number);
+              return "result";
+            }
+            return currentPhase;
+          });
         }
       }
 
