@@ -82,9 +82,25 @@ export default function GamePage() {
       if (msg.event === "all_answered") {
         setAllAnswered(true);
         setCorrectAnswer(msg.correct_answer as string);
+        // Refresh player scores from server
+        (async () => {
+          try {
+            const pr = await api.get(`/games/${code}/players`);
+            setPlayers(pr.data);
+          } catch {}
+        })();
       }
 
-      if (msg.event === "score_updated") setPlayers(msg.players as Player[]);
+      if (msg.event === "score_updated") {
+        // Always fetch fresh scores from server instead of trusting broadcast data
+        (async () => {
+          try {
+            const gameRes = await api.get(`/games/${code}`);
+            const pr = await api.get(`/games/${code}/players`);
+            setPlayers(pr.data);
+          } catch {}
+        })();
+      }
       if (msg.event === "next_question") {
         const idx = msg.question_index as number;
         setCurrentIndex(idx); setSelectedAnswer(null); setCorrectAnswer(null);
@@ -193,13 +209,17 @@ export default function GamePage() {
 
   async function nextQuestion() {
     const nextIndex = currentIndex + 1;
-    // Clear state immediately before broadcasting
     setCorrectAnswer(null);
     setSelectedAnswer(null);
     setAllAnswered(false);
     setAnswerSubmitted(false);
     if (nextIndex >= questions.length) {
-      try { await api.post(`/games/${code}/finish`); }
+      try {
+        // Fetch final scores before finishing
+        const pr = await api.get(`/games/${code}/players`);
+        setPlayers(pr.data);
+        await api.post(`/games/${code}/finish`);
+      }
       catch { setPhase("finished"); }
     } else {
       setCurrentIndex(nextIndex);
@@ -207,8 +227,10 @@ export default function GamePage() {
       setPhase("question");
       setAnswerStart(Date.now());
       await api.post(`/games/${code}/question/${nextIndex}`);
-      gameSocket.send({ event: "next_question", question_index: nextIndex });
+      // Fetch fresh scores from DB
       const pr = await api.get(`/games/${code}/players`);
+      setPlayers(pr.data);
+      gameSocket.send({ event: "next_question", question_index: nextIndex });
       gameSocket.send({ event: "score_updated", players: pr.data });
     }
   }
