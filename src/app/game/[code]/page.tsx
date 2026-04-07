@@ -49,16 +49,18 @@ export default function GamePage() {
       try {
         // Check if this player was removed (refreshed and confirmed)
         const myPlayerId = storePlayerId || localStorage.getItem(`player_id_${code}`);
-        const amHost = localStorage.getItem(`host_${code}`) === "true";
 
-        if (!amHost && myPlayerId) {
-          const playerCheck = await api.get(`/games/${code}/players`);
-          const stillInGame = playerCheck.data.find((p: {id: string}) => p.id === myPlayerId);
-          if (!stillInGame) {
-            setKicked(true);
-            setLoading(false);
-            return;
-          }
+        // Use the isHost variable computed at component level, not a new check
+        if (!isHost && myPlayerId) {
+          try {
+            const playerCheck = await api.get(`/games/${code}/players`);
+            const stillInGame = playerCheck.data.find((p: {id: string}) => p.id === myPlayerId);
+            if (!stillInGame) {
+              setKicked(true);
+              setLoading(false);
+              return;
+            }
+          } catch {}
         }
 
         const gameRes = await api.get(`/games/${code}`);
