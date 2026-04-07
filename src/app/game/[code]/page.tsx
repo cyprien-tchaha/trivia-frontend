@@ -59,6 +59,23 @@ export default function GamePage() {
           attempts++;
         }
         setQuestions(qs);
+        // Check if player already answered current question
+        const currentQ = qs[gameData.current_question_index];
+        if (currentQ && !isHost) {
+          const myPlayerId = storePlayerId || localStorage.getItem(`player_id_${code}`);
+          if (myPlayerId) {
+            try {
+              const answerCheck = await api.get(`/games/${code}/player-answer/${myPlayerId}/${currentQ.id}`);
+              if (answerCheck.data.answered) {
+                setCorrectAnswer(answerCheck.data.correct_answer);
+                setSelectedAnswer(answerCheck.data.answer);
+                setScore(answerCheck.data.score);
+                setPhase("result");
+              }
+            } catch {}
+          }
+        }
+        setCurrentIndex(gameData.current_question_index);
       } catch { console.error("Failed to load game"); }
       finally { setLoading(false); setAnswerStart(Date.now()); }
     }
