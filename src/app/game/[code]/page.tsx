@@ -264,9 +264,25 @@ export default function GamePage() {
       if (isHost) setAllAnswered(true);
       return;
     }
+
+    // Every tick, if host, check if all active players answered
+    if (isHost && currentQuestion) {
+      (async () => {
+        try {
+          const playersRes = await api.get(`/games/${code}/players`);
+          const activePlayers = playersRes.data;
+          if (activePlayers.length === 0) return;
+          const answersRes = await api.get(`/games/${code}/question-answers/${currentQuestion.id}`);
+          if (answersRes.data.count >= activePlayers.length) {
+            setAllAnswered(true);
+          }
+        } catch {}
+      })();
+    }
+
     const t = setTimeout(() => setTimeLeft((n) => n - 1), 1000);
     return () => clearTimeout(t);
-  }, [timeLeft, phase, selectedAnswer, isHost]);
+  }, [timeLeft, phase, selectedAnswer, isHost, currentQuestion]);
 
   useEffect(() => {
     if (phase === "finished") return;
