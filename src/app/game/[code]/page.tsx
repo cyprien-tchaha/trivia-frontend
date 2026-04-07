@@ -310,11 +310,11 @@ export default function GamePage() {
 
   useEffect(() => {
     if (phase === "finished") return;
+
     const handleBeforeUnload = (e: BeforeUnloadEvent) => {
       e.preventDefault();
       e.returnValue = "Are you sure you want to leave? You will be removed from the game.";
       if (!isHost && playerId) {
-        // Set flag immediately — this is synchronous and instant
         localStorage.setItem(`left_game_${code}`, "true");
         navigator.sendBeacon(
           `${process.env.NEXT_PUBLIC_API_URL}/games/${code}/leave`,
@@ -323,8 +323,24 @@ export default function GamePage() {
       }
       return e.returnValue;
     };
+
+    // Mobile browsers use pagehide instead of beforeunload
+    const handlePageHide = () => {
+      if (!isHost && playerId) {
+        localStorage.setItem(`left_game_${code}`, "true");
+        navigator.sendBeacon(
+          `${process.env.NEXT_PUBLIC_API_URL}/games/${code}/leave`,
+          JSON.stringify({ player_id: playerId })
+        );
+      }
+    };
+
     window.addEventListener("beforeunload", handleBeforeUnload);
-    return () => window.removeEventListener("beforeunload", handleBeforeUnload);
+    window.addEventListener("pagehide", handlePageHide);
+    return () => {
+      window.removeEventListener("beforeunload", handleBeforeUnload);
+      window.removeEventListener("pagehide", handlePageHide);
+    };
   }, [phase, playerId, code, isHost]);
 
   async function handleTimeout() {
