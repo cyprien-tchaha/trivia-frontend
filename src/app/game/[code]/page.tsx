@@ -198,31 +198,34 @@ export default function GamePage() {
 
       if (msg.event === "player_left") {
         const leftId = msg.player_id as string;
-        setPlayers((prev) => {
-          const updated = prev.filter((p) => p.id !== leftId);
-          return updated;
-        });
-        // After a player leaves, re-check if all remaining answered
-        if (isHost) {
-          (async () => {
+        setPlayers((prev) => prev.filter((p) => p.id !== leftId));
+        
+        // Check using localStorage directly — not stale closure variable
+        const amHostNow = localStorage.getItem(`host_${code}`) === "true";
+        console.log("player_left, amHostNow:", amHostNow);
+        
+        if (amHostNow) {
+          setTimeout(async () => {
             try {
-              const gameRes = await api.get(`/games/${code}`);
-              const gameData = gameRes.data;
-              const qRes = await api.get(`/questions/${gameData.game_id}`);
-              const questions = qRes.data;
-              const currentQ = questions[gameData.current_question_index];
-              if (!currentQ) return;
               const playersRes = await api.get(`/games/${code}/players`);
               const activePlayers = playersRes.data;
               if (activePlayers.length === 0) return;
-              // Check answers for current question
+              
+              const gameRes = await api.get(`/games/${code}`);
+              const gameData = gameRes.data;
+              const qRes = await api.get(`/questions/${gameData.game_id}`);
+              const qs = qRes.data;
+              const currentQ = qs[gameData.current_question_index];
+              if (!currentQ) return;
+              
               const answersRes = await api.get(`/games/${code}/question-answers/${currentQ.id}`);
+              console.log("answers:", answersRes.data.count, "players:", activePlayers.length);
               if (answersRes.data.count >= activePlayers.length) {
                 setAllAnswered(true);
                 setCorrectAnswer(currentQ.correct_answer);
               }
-            } catch {}
-          })();
+            } catch (e) { console.log("error:", e); }
+          }, 1500); // Wait 1.5s for leave endpoint to complete
         }
       }
 
