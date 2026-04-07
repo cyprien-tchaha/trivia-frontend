@@ -115,9 +115,12 @@ export default function GamePage() {
     }
 
 
-    // Connect WebSocket FIRST before loading game state
-    if (!gameSocket.isConnected()) gameSocket.connect(code);
     loadGame();
+    // Reconnect silently without broadcasting disconnect
+    if (!gameSocket.isConnected()) {
+      setTimeout(() => gameSocket.connect(code), 100);
+    }
+    
     const unsub = gameSocket.onMessage((msg: Record<string, unknown>) => {
       if (msg.event === "answer_result") {
         const ca = msg.correct_answer as string;
