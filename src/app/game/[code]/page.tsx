@@ -198,7 +198,32 @@ export default function GamePage() {
 
       if (msg.event === "player_left") {
         const leftId = msg.player_id as string;
-        setPlayers((prev) => prev.filter((p) => p.id !== leftId));
+        setPlayers((prev) => {
+          const updated = prev.filter((p) => p.id !== leftId);
+          return updated;
+        });
+        // After a player leaves, re-check if all remaining answered
+        if (isHost) {
+          (async () => {
+            try {
+              const gameRes = await api.get(`/games/${code}`);
+              const gameData = gameRes.data;
+              const qRes = await api.get(`/questions/${gameData.game_id}`);
+              const questions = qRes.data;
+              const currentQ = questions[gameData.current_question_index];
+              if (!currentQ) return;
+              const playersRes = await api.get(`/games/${code}/players`);
+              const activePlayers = playersRes.data;
+              if (activePlayers.length === 0) return;
+              // Check answers for current question
+              const answersRes = await api.get(`/games/${code}/question-answers/${currentQ.id}`);
+              if (answersRes.data.count >= activePlayers.length) {
+                setAllAnswered(true);
+                setCorrectAnswer(currentQ.correct_answer);
+              }
+            } catch {}
+          })();
+        }
       }
 
       if (msg.event === "game_reset") {
