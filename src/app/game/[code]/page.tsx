@@ -75,7 +75,8 @@ export default function GamePage() {
             } catch {}
           }
         }
-        setCurrentIndex(gameData.current_question_index);
+        const idx = typeof gameData.current_question_index === "number" ? gameData.current_question_index : 0;
+        setCurrentIndex(idx);
       } catch { console.error("Failed to load game"); }
       finally { setLoading(false); setAnswerStart(Date.now()); }
     }
