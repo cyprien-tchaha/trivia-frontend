@@ -49,7 +49,17 @@ export default function GamePage() {
       try {
         const myPlayerId = storePlayerId || localStorage.getItem(`player_id_${code}`);
 
-        // Check if player was removed (refreshed and confirmed leave)
+        // Check localStorage flag first — instant, no API needed
+        if (!isHost && myPlayerId) {
+          const leftGame = localStorage.getItem(`left_game_${code}`);
+          if (leftGame === "true") {
+            setKicked(true);
+            setLoading(false);
+            return;
+          }
+        }
+
+        // Also check via API as backup
         if (!isHost && myPlayerId) {
           try {
             const playerCheck = await api.get(`/games/${code}/players`);
@@ -260,6 +270,8 @@ export default function GamePage() {
       e.preventDefault();
       e.returnValue = "Are you sure you want to leave? You will be removed from the game.";
       if (!isHost && playerId) {
+        // Set flag immediately — this is synchronous and instant
+        localStorage.setItem(`left_game_${code}`, "true");
         navigator.sendBeacon(
           `${process.env.NEXT_PUBLIC_API_URL}/games/${code}/leave`,
           JSON.stringify({ player_id: playerId })
