@@ -76,27 +76,33 @@ export default function GamePage() {
         const amHost = localStorage.getItem(`host_${code}`) === "true";
 
         if (!amHost && myPlayerId) {
-          // Use resume endpoint to get exact current state
-          const resumeRes = await api.get(`/games/${code}/resume/${myPlayerId}`);
-          const resumeData = resumeRes.data;
+          try {
+            const resumePromise = api.get(`/games/${code}/resume/${myPlayerId}`);
+            const timeoutPromise = new Promise((_, reject) =>
+              setTimeout(() => reject(new Error("timeout")), 3000)
+            );
+            const resumeRes = await Promise.race([resumePromise, timeoutPromise]) as { data: Record<string, unknown> };
+            const resumeData = resumeRes.data;
 
-          const idx = Number(resumeData.current_question_index) || 0;
-          setCurrentIndex(idx);
-          setScore(resumeData.player_score || 0);
+            const idx = Number(resumeData.current_question_index) || 0;
+            setCurrentIndex(idx);
+            setScore(Number(resumeData.player_score) || 0);
 
-          if (resumeData.already_answered) {
-            // Player already answered this question — show result, lock them out
-            setSelectedAnswer(resumeData.answer || "");
-            setCorrectAnswer(resumeData.correct_answer || "");
-            setPhase("result");
-          } else {
-            // Player hasn't answered yet — let them answer
+            if (resumeData.already_answered) {
+              setSelectedAnswer(resumeData.answer as string || "");
+              setCorrectAnswer(resumeData.correct_answer as string || "");
+              setPhase("result");
+            } else {
+              setPhase("question");
+              setTimeLeft(60);
+            }
+          } catch {
+            // Resume failed or timed out — just set index and let player continue
+            const idx = Number(gameData.current_question_index) || 0;
+            setCurrentIndex(idx);
             setPhase("question");
-            setTimeLeft(60);
-            setAnswerStart(Date.now());
           }
         } else {
-          // Host — just set current index
           const idx = Number(gameData.current_question_index) || 0;
           setCurrentIndex(idx);
         }
@@ -109,8 +115,9 @@ export default function GamePage() {
     }
 
 
-    loadGame();
+    // Connect WebSocket FIRST before loading game state
     if (!gameSocket.isConnected()) gameSocket.connect(code);
+    loadGame();
     const unsub = gameSocket.onMessage((msg: Record<string, unknown>) => {
       if (msg.event === "answer_result") {
         const ca = msg.correct_answer as string;
@@ -160,10 +167,16 @@ export default function GamePage() {
       }
       if (msg.event === "next_question") {
         const idx = msg.question_index as number;
-        setCurrentIndex(idx); setSelectedAnswer(null); setCorrectAnswer(null);
-        setTimeLeft(60); setPhase("question"); setAnswerStart(Date.now());
+        // Reset ALL state atomically to prevent partial updates
+        setCurrentIndex(idx);
+        setSelectedAnswer(null);
+        setCorrectAnswer(null);
+        setTimeLeft(60);
+        setPhase("question");
+        setAnswerStart(Date.now());
         setAnswerSubmitted(false);
         setAllAnswered(false);
+        setScore((prev) => prev); // keep score
       }
       if (msg.event === "game_finished") { setPlayers(msg.players as Player[]); setPhase("finished"); }
       if (msg.event === "game_reset") {
