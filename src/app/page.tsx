@@ -12,6 +12,10 @@ export default function Home() {
         setLoadError(true);
       }
     }
+
+    // Wake up Railway backend when home page loads
+    fetch(`${process.env.NEXT_PUBLIC_API_URL?.replace("/api", "")}/health`)
+      .catch(() => {}); // Silently ignore if it fails
   }, []);
 
   return (
