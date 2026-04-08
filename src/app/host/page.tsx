@@ -74,7 +74,12 @@ export default function HostPage() {
         if (msg.event === "game_started") router.push(`/game/${data.code}`);
       });
       setStep("lobby");
-    } catch { setError("Failed to create game. Is the backend running?"); }
+    } catch (err: unknown) {
+      const status = (err as { response?: { status?: number } })?.response?.status;
+      if (status === 500) setError("Our AI is taking a breather. Wait a few seconds and try again.");
+      else if (status === 400) setError("Something looks off with your settings. Try adjusting and resubmitting.");
+      else setError("Couldn't create the game. Check your connection and try again.");
+    }
     finally { setLoading(false); }
   }
 

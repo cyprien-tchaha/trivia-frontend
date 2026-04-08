@@ -126,6 +126,10 @@ export default function GamePage() {
         }
       } catch (e) {
         console.error("Failed to load game", e);
+        // Game failed to load — redirect home with message
+        if (typeof window !== "undefined") {
+          window.location.href = "/?error=game_load_failed";
+        }
       } finally {
         setLoading(false);
         setAnswerStart(Date.now());

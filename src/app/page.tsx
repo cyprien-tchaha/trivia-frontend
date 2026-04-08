@@ -1,6 +1,19 @@
 "use client";
 
+import { useState, useEffect } from "react";
+
 export default function Home() {
+  const [loadError, setLoadError] = useState(false);
+
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      const params = new URLSearchParams(window.location.search);
+      if (params.get("error") === "game_load_failed") {
+        setLoadError(true);
+      }
+    }
+  }, []);
+
   return (
     <main style={{
       minHeight: "100vh",
@@ -12,6 +25,18 @@ export default function Home() {
       padding: "24px",
       fontFamily: "'DM Sans', sans-serif",
     }}>
+      {loadError && (
+        <div style={{
+          position: "fixed", top: "16px", left: "50%", transform: "translateX(-50%)",
+          background: "rgba(255,77,109,0.1)", border: "1px solid rgba(255,77,109,0.3)",
+          borderRadius: "10px", padding: "12px 20px", zIndex: 100,
+          color: "#ff4d6d", fontSize: "14px", textAlign: "center",
+          fontFamily: "'DM Sans', sans-serif",
+        }}>
+          The game couldn't load. It may have ended or the link expired.
+        </div>
+      )}
+
       {/* Glow effects */}
       <div style={{
         position: "fixed", inset: 0, pointerEvents: "none", overflow: "hidden",

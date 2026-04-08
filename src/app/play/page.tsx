@@ -109,7 +109,10 @@ export default function PlayPage() {
       setStep("lobby");
     } catch (err: unknown) {
       const status = (err as { response?: { status?: number } })?.response?.status;
-      setError(status === 404 ? "Game not found. Check the code." : "Failed to join. Try again.");
+      if (status === 404) setError("We couldn't find that game. Double-check the code and try again.");
+      else if (status === 400) setError("This game has already started. Ask the host to start a new game.");
+      else if (status === 500) setError("Something went wrong on our end. Wait a few seconds and try again.");
+      else setError("Couldn't connect to the game. Check your internet and try again.");
     } finally { setLoading(false); }
   }
 
