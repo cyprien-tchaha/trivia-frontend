@@ -13,6 +13,43 @@ const C = {
   danger: "#ff4d6d", text: "#f0f0f8", muted: "#6b6b8a",
 };
 
+function ReportButton({ questionId, code }: { questionId?: string; code: string }) {
+  const [reported, setReported] = useState(false);
+  const [reporting, setReporting] = useState(false);
+
+  if (!questionId) return null;
+
+  async function report() {
+    if (reported || reporting) return;
+    setReporting(true);
+    try {
+      await api.post(`/questions/${questionId}/report`, { code });
+      setReported(true);
+    } catch {}
+    finally { setReporting(false); }
+  }
+
+  return (
+    <button
+      onClick={report}
+      disabled={reported || reporting}
+      style={{
+        background: "none",
+        border: `1px solid ${reported ? "rgba(107,107,138,0.3)" : "rgba(255,77,109,0.3)"}`,
+        borderRadius: "8px",
+        padding: "6px 12px",
+        fontSize: "12px",
+        color: reported ? C.muted : "rgba(255,77,109,0.7)",
+        cursor: reported ? "default" : "pointer",
+        fontFamily: "'DM Sans', sans-serif",
+        transition: "all 0.15s ease",
+      }}
+    >
+      {reported ? "✓ Reported" : reporting ? "Reporting..." : "🚩 Report question"}
+    </button>
+  );
+}
+
 export default function GamePage() {
   const params = useParams();
   const code = (params.code as string).toUpperCase();
@@ -672,7 +709,10 @@ export default function GamePage() {
                 </button>
               )}
               {!isHost && phase === "result" && (
-                <p style={{ textAlign: "center", color: C.muted, fontSize: "13px" }}>Waiting for host to continue...</p>
+                <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: "8px" }}>
+                  <p style={{ textAlign: "center", color: C.muted, fontSize: "13px" }}>Waiting for host to continue...</p>
+                  <ReportButton questionId={currentQuestion?.id} code={code} />
+                </div>
               )}
             </div>
           )}
