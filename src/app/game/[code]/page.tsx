@@ -622,7 +622,9 @@ export default function GamePage() {
         </div>
         <div style={{ textAlign: "right" }}>
           <p style={{ fontSize: "10px", letterSpacing: "0.12em", textTransform: "uppercase", color: C.muted }}>Score</p>
-          <p style={{ fontFamily: "'Syne', sans-serif", fontWeight: 700, fontSize: "20px", color: C.accent }}>{score}</p>
+          <p style={{ fontFamily: "'Syne', sans-serif", fontWeight: 700, fontSize: "20px", color: C.accent }}>
+            {score} <span style={{ fontSize: "12px", color: C.muted, fontWeight: 400 }}>pts</span>
+          </p>
         </div>
       </div>
 
@@ -640,22 +642,32 @@ export default function GamePage() {
               let opacity = 1;
               if (phase === "result") {
                 if (option === correctAnswer) { bg = "rgba(0,229,176,0.12)"; border = C.accent; color = C.accent; }
-                else if (option === selectedAnswer) { bg = "rgba(255,77,109,0.1)"; border = C.danger; color = C.danger; }
-                else { opacity = 0.3; }
+                else if (option === selectedAnswer && option !== correctAnswer) { bg = "rgba(255,77,109,0.1)"; border = C.danger; color = C.danger; }
+                else { opacity = 0.35; }
               } else if (option === selectedAnswer) {
                 bg = "rgba(0,229,176,0.08)"; border = C.accent;
               }
+              const icon = phase === "result"
+                ? option === correctAnswer ? "✓" : option === selectedAnswer ? "✗" : null
+                : null;
               const style = {
-                width: "100%", padding: "16px 20px", borderRadius: "12px", textAlign: "left" as const,
+                width: "100%", padding: "16px 20px",
+                minHeight: "56px",
+                borderRadius: "12px", textAlign: "left" as const,
                 background: bg, border: `1.5px solid ${border}`, color, opacity,
                 fontSize: "15px", fontFamily: "'DM Sans', sans-serif",
                 cursor: isHost || selectedAnswer || phase === "result" ? "default" : "pointer",
                 transition: "all 0.12s ease",
+                display: "flex", alignItems: "center", gap: "10px",
               };
               return isHost ? (
-                <div key={option} style={style}>{option}</div>
+                <div key={option} style={style}>
+                  {icon && <span style={{ fontWeight: 700, flexShrink: 0 }}>{icon}</span>}
+                  {option}
+                </div>
               ) : (
                 <button key={option} onClick={() => selectAnswer(option)} disabled={phase === "result"} style={style}>
+                  {icon && <span style={{ fontWeight: 700, flexShrink: 0 }}>{icon}</span>}
                   {option}
                 </button>
               );
@@ -670,12 +682,11 @@ export default function GamePage() {
             }}>Lock In Answer →</button>
           )}
 
+          {/* Compact hint — no dashed box */}
           {phase === "question" && !isHost && !selectedAnswer && (
-            <div style={{
-              width: "100%", padding: "14px", borderRadius: "12px",
-              fontSize: "14px", textAlign: "center",
-              color: C.muted, border: `1px dashed ${C.border}`,
-            }}>Select an answer above</div>
+            <p style={{ textAlign: "center", color: C.muted, fontSize: "13px", padding: "4px 0" }}>
+              Select an answer above
+            </p>
           )}
 
           {(phase === "result" || (isHost && (allAnswered || timeLeft <= 0))) && (
