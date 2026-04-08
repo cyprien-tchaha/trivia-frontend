@@ -65,6 +65,7 @@ export default function GamePage() {
   const [correctAnswer, setCorrectAnswer] = useState<string | null>(null);
   const [timeLeft, setTimeLeft] = useState(60);
   const [score, setScore] = useState(0);
+  const [correctCount, setCorrectCount] = useState(0);
   const [players, setPlayers] = useState<Player[]>([]);
   const [phase, setPhase] = useState<"question" | "result" | "finished">("question");
   const [answerStart, setAnswerStart] = useState(Date.now());
@@ -78,6 +79,7 @@ export default function GamePage() {
   const showResult = useCallback((correct: boolean, correct_answer: string, newScore?: number) => {
     setCorrectAnswer(correct_answer);
     if (newScore !== undefined) setScore(newScore);
+    if (correct) setCorrectCount((n) => n + 1);
     setPhase("result");
   }, []);
 
@@ -277,6 +279,7 @@ export default function GamePage() {
         setCorrectAnswer(null);
         setTimeLeft(60);
         setScore(0);
+        setCorrectCount(0);
         setPlayers([]);
         setQuestions([]);
         setPhase("question");
@@ -417,6 +420,7 @@ export default function GamePage() {
       if (!res.data.duplicate) {
         setCorrectAnswer(res.data.correct_answer ?? "");
         setScore(res.data.score);
+        if (res.data.correct) setCorrectCount((n) => n + 1);
       }
     } catch {
       showResult(false, currentQuestion.correct_answer ?? "");
@@ -502,17 +506,50 @@ export default function GamePage() {
     const medals = ["🥇", "🥈", "🥉"];
     const medalBg = ["rgba(245,166,35,0.08)", "rgba(160,160,180,0.08)", "rgba(180,100,50,0.08)"];
     const medalBorder = ["rgba(245,166,35,0.3)", "rgba(160,160,180,0.3)", "rgba(180,100,50,0.3)"];
+    const myPlayer = sorted.find((p) => p.id === playerId);
+    const myRank = sorted.findIndex((p) => p.id === playerId) + 1;
     return (
       <main style={{ minHeight: "100vh", background: C.bg, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: "24px", fontFamily: "'DM Sans', sans-serif" }}>
         <div style={{ width: "100%", maxWidth: "440px" }}>
-          <div style={{ textAlign: "center", marginBottom: "32px" }}>
-            <div style={{ fontSize: "56px", marginBottom: "12px" }}>🏆</div>
-            <p style={{ fontSize: "11px", letterSpacing: "0.15em", textTransform: "uppercase", color: C.accent, marginBottom: "8px" }}>Winner</p>
+
+          {/* Winner block — tighter top padding */}
+          <div style={{ textAlign: "center", marginBottom: "24px", paddingTop: "8px" }}>
+            <div style={{ fontSize: "52px", marginBottom: "10px" }}>🏆</div>
+            <p style={{ fontSize: "11px", letterSpacing: "0.15em", textTransform: "uppercase", color: C.accent, marginBottom: "6px" }}>Winner</p>
             <h1 style={{ fontFamily: "'Syne', sans-serif", fontSize: "40px", fontWeight: 800, marginBottom: "4px" }}>{sorted[0]?.name}</h1>
-            <p style={{ color: C.accent2, fontFamily: "'Syne', sans-serif", fontWeight: 700, fontSize: "20px", marginBottom: "4px" }}>{sorted[0]?.score} pts</p>
-            <p style={{ color: C.muted, fontSize: "13px" }}>Final Standings</p>
+            <p style={{ color: C.accent2, fontFamily: "'Syne', sans-serif", fontWeight: 700, fontSize: "20px", marginBottom: "2px" }}>{sorted[0]?.score} pts</p>
+            {sorted.length === 1 && (
+              <p style={{ fontSize: "12px", color: C.muted, marginTop: "4px" }}>Solo game</p>
+            )}
           </div>
-          <div style={{ display: "flex", flexDirection: "column", gap: "8px", marginBottom: "24px" }}>
+
+          {/* Score summary for current player */}
+          {!isHost && myPlayer && (
+            <div style={{
+              background: "rgba(0,229,176,0.06)", border: "1px solid rgba(0,229,176,0.15)",
+              borderRadius: "12px", padding: "14px 16px", marginBottom: "12px",
+              display: "flex", justifyContent: "space-around", alignItems: "center",
+            }}>
+              <div style={{ textAlign: "center" }}>
+                <p style={{ fontSize: "22px", fontWeight: 700, fontFamily: "'Syne', sans-serif", color: C.accent }}>{myPlayer.score}</p>
+                <p style={{ fontSize: "11px", color: C.muted, marginTop: "2px" }}>points</p>
+              </div>
+              <div style={{ width: "1px", height: "36px", background: C.border }} />
+              <div style={{ textAlign: "center" }}>
+                <p style={{ fontSize: "22px", fontWeight: 700, fontFamily: "'Syne', sans-serif", color: C.accent }}>{correctCount}/{questions.length}</p>
+                <p style={{ fontSize: "11px", color: C.muted, marginTop: "2px" }}>correct</p>
+              </div>
+              <div style={{ width: "1px", height: "36px", background: C.border }} />
+              <div style={{ textAlign: "center" }}>
+                <p style={{ fontSize: "22px", fontWeight: 700, fontFamily: "'Syne', sans-serif", color: myRank === 1 ? C.accent2 : C.text }}>#{myRank}</p>
+                <p style={{ fontSize: "11px", color: C.muted, marginTop: "2px" }}>ranking</p>
+              </div>
+            </div>
+          )}
+
+          {/* Standings */}
+          <p style={{ fontSize: "11px", letterSpacing: "0.12em", textTransform: "uppercase", color: C.muted, marginBottom: "8px" }}>Final Standings</p>
+          <div style={{ display: "flex", flexDirection: "column", gap: "8px", marginBottom: "20px" }}>
             {sorted.map((p, i) => (
               <div key={p.id} style={{
                 display: "flex", alignItems: "center", gap: "14px",
@@ -530,6 +567,8 @@ export default function GamePage() {
               </div>
             ))}
           </div>
+
+          {/* Action buttons */}
           {isHost ? (
             <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
               <button onClick={async () => {
@@ -545,6 +584,7 @@ export default function GamePage() {
                   setCorrectAnswer(null);
                   setTimeLeft(60);
                   setScore(0);
+                  setCorrectCount(0);
                   setPlayers([]);
                   let qs: Question[] = [];
                   let attempts = 0;
@@ -564,10 +604,10 @@ export default function GamePage() {
                 border: "none", background: C.accent, color: "#0a0a0f", cursor: "pointer",
               }}>Play Again — Same Players</button>
               <a href="/" style={{
-                display: "block", width: "100%", padding: "16px", textAlign: "center",
-                background: C.surface, color: C.muted, borderRadius: "12px",
-                textDecoration: "none", fontFamily: "'Syne', sans-serif",
-                fontWeight: 700, fontSize: "15px", border: `1px solid ${C.border}`,
+                display: "block", width: "100%", padding: "14px", textAlign: "center",
+                color: C.muted, borderRadius: "12px", textDecoration: "none",
+                fontFamily: "'Syne', sans-serif", fontWeight: 600, fontSize: "14px",
+                border: `1px solid ${C.border}`,
               }}>New Game</a>
             </div>
           ) : (
