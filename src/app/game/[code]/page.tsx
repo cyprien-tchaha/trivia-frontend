@@ -74,6 +74,9 @@ export default function GamePage() {
   const [kicked, setKicked] = useState(false);
   const [answerSubmitted, setAnswerSubmitted] = useState(false);
   const [allAnswered, setAllAnswered] = useState(false);
+  const [commentary, setCommentary] = useState<string>("");
+  const [gameId, setGameId] = useState<string>("");
+  const [gameTopics, setGameTopics] = useState<string>("");
   const currentQuestion = questions[currentIndex];
 
   const showResult = useCallback((correct: boolean, correct_answer: string, newScore?: number) => {
@@ -82,6 +85,21 @@ export default function GamePage() {
     if (correct) setCorrectCount((n) => n + 1);
     setPhase("result");
   }, []);
+
+  async function fetchCommentary(gId: string, question: Question, correctCount: number, totalCount: number, topics: string) {
+    try {
+      const res = await api.post(`/questions/${gId}/commentary`, {
+        question_text: question.text,
+        correct_answer: question.correct_answer,
+        topics,
+        correct_count: correctCount,
+        total_count: totalCount,
+      });
+      setCommentary(res.data.commentary || "");
+    } catch {
+      setCommentary("");
+    }
+  }
 
   useEffect(() => {
     async function loadGame() {
@@ -113,6 +131,8 @@ export default function GamePage() {
 
         const gameRes = await api.get(`/games/${code}`);
         const gameData = gameRes.data;
+        setGameId(gameData.game_id);
+        setGameTopics(gameData.topics || "");
 
         if (gameData.status === "finished") {
           const playersRes = await api.get(`/games/${code}/players`);
@@ -209,6 +229,22 @@ export default function GamePage() {
           try {
             const pr = await api.get(`/games/${code}/players`);
             setPlayers(pr.data);
+            const rightCount = (msg.correct_count as number) ?? 0;
+            const totalCount = pr.data.length;
+            setGameId((gId) => {
+              setQuestions((qs) => {
+                setCurrentIndex((idx) => {
+                  const q = qs[idx];
+                  setGameTopics((topics) => {
+                    if (q && gId) fetchCommentary(gId, q, rightCount, totalCount, topics);
+                    return topics;
+                  });
+                  return idx;
+                });
+                return qs;
+              });
+              return gId;
+            });
           } catch {}
         })();
       }
@@ -232,6 +268,7 @@ export default function GamePage() {
         setAnswerStart(Date.now());
         setAnswerSubmitted(false);
         setAllAnswered(false);
+        setCommentary("");
       }
 
       if (msg.event === "game_finished") {
@@ -280,6 +317,7 @@ export default function GamePage() {
         setTimeLeft(60);
         setScore(0);
         setCorrectCount(0);
+        setCommentary("");
         setPlayers([]);
         setQuestions([]);
         setPhase("question");
@@ -433,6 +471,7 @@ export default function GamePage() {
     setSelectedAnswer(null);
     setAllAnswered(false);
     setAnswerSubmitted(false);
+    setCommentary("");
     if (nextIndex >= questions.length) {
       try {
         const pr = await api.get(`/games/${code}/players`);
@@ -511,8 +550,6 @@ export default function GamePage() {
     return (
       <main style={{ minHeight: "100vh", background: C.bg, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: "24px", fontFamily: "'DM Sans', sans-serif" }}>
         <div style={{ width: "100%", maxWidth: "440px" }}>
-
-          {/* Winner block — tighter top padding */}
           <div style={{ textAlign: "center", marginBottom: "24px", paddingTop: "8px" }}>
             <div style={{ fontSize: "52px", marginBottom: "10px" }}>🏆</div>
             <p style={{ fontSize: "11px", letterSpacing: "0.15em", textTransform: "uppercase", color: C.accent, marginBottom: "6px" }}>Winner</p>
@@ -523,7 +560,6 @@ export default function GamePage() {
             )}
           </div>
 
-          {/* Score summary for current player */}
           {!isHost && myPlayer && (
             <div style={{
               background: "rgba(0,229,176,0.06)", border: "1px solid rgba(0,229,176,0.15)",
@@ -547,7 +583,6 @@ export default function GamePage() {
             </div>
           )}
 
-          {/* Standings */}
           <p style={{ fontSize: "11px", letterSpacing: "0.12em", textTransform: "uppercase", color: C.muted, marginBottom: "8px" }}>Final Standings</p>
           <div style={{ display: "flex", flexDirection: "column", gap: "8px", marginBottom: "20px" }}>
             {sorted.map((p, i) => (
@@ -568,7 +603,6 @@ export default function GamePage() {
             ))}
           </div>
 
-          {/* Action buttons */}
           {isHost ? (
             <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
               <button onClick={async () => {
@@ -585,6 +619,7 @@ export default function GamePage() {
                   setTimeLeft(60);
                   setScore(0);
                   setCorrectCount(0);
+                  setCommentary("");
                   setPlayers([]);
                   let qs: Question[] = [];
                   let attempts = 0;
@@ -732,23 +767,45 @@ export default function GamePage() {
           {(phase === "result" || (isHost && (allAnswered || timeLeft <= 0))) && (
             <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
               {isHost ? (
-                <div style={{ padding: "14px", borderRadius: "12px", textAlign: "center", background: "rgba(0,229,176,0.06)", border: "1px solid rgba(0,229,176,0.2)" }}>
-                  <p style={{ fontSize: "13px", color: C.muted }}>
-                    Correct answer: <span style={{ color: C.accent, fontWeight: 600 }}>{correctAnswer}</span>
-                  </p>
-                </div>
+                <>
+                  <div style={{ padding: "14px", borderRadius: "12px", textAlign: "center", background: "rgba(0,229,176,0.06)", border: "1px solid rgba(0,229,176,0.2)" }}>
+                    <p style={{ fontSize: "13px", color: C.muted }}>
+                      Correct answer: <span style={{ color: C.accent, fontWeight: 600 }}>{correctAnswer}</span>
+                    </p>
+                  </div>
+                  {commentary && (
+                    <p style={{
+                      textAlign: "center", fontSize: "14px", color: C.muted,
+                      fontStyle: "italic", animationName: "fadeUp", animationDuration: "0.5s",
+                      animationDelay: "0.4s", animationFillMode: "both",
+                    }}>
+                      {commentary}
+                    </p>
+                  )}
+                </>
               ) : (
-                <div style={{
-                  padding: "16px", borderRadius: "12px", textAlign: "center",
-                  background: isCorrect ? "rgba(0,229,176,0.07)" : "rgba(255,77,109,0.07)",
-                  border: `1px solid ${isCorrect ? "rgba(0,229,176,0.2)" : "rgba(255,77,109,0.2)"}`,
-                }}>
-                  <p style={{ fontFamily: "'Syne', sans-serif", fontWeight: 700, fontSize: "18px", color: isCorrect ? C.accent : C.danger, marginBottom: "4px" }}>
-                    {isCorrect ? "Correct!" : "Wrong!"}
-                  </p>
-                  {!isCorrect && <p style={{ fontSize: "13px", color: C.muted, marginBottom: "4px" }}>Answer: <span style={{ color: C.accent }}>{correctAnswer}</span></p>}
-                  <p style={{ fontSize: "12px", color: C.muted }}>Score: <span style={{ fontWeight: 700, color: C.text }}>{score} pts</span></p>
-                </div>
+                <>
+                  <div style={{
+                    padding: "16px", borderRadius: "12px", textAlign: "center",
+                    background: isCorrect ? "rgba(0,229,176,0.07)" : "rgba(255,77,109,0.07)",
+                    border: `1px solid ${isCorrect ? "rgba(0,229,176,0.2)" : "rgba(255,77,109,0.2)"}`,
+                  }}>
+                    <p style={{ fontFamily: "'Syne', sans-serif", fontWeight: 700, fontSize: "18px", color: isCorrect ? C.accent : C.danger, marginBottom: "4px" }}>
+                      {isCorrect ? "Correct!" : "Wrong!"}
+                    </p>
+                    {!isCorrect && <p style={{ fontSize: "13px", color: C.muted, marginBottom: "4px" }}>Answer: <span style={{ color: C.accent }}>{correctAnswer}</span></p>}
+                    <p style={{ fontSize: "12px", color: C.muted }}>Score: <span style={{ fontWeight: 700, color: C.text }}>{score} pts</span></p>
+                  </div>
+                  {commentary && (
+                    <p style={{
+                      textAlign: "center", fontSize: "14px", color: C.muted,
+                      fontStyle: "italic", animationName: "fadeUp", animationDuration: "0.5s",
+                      animationDelay: "0.4s", animationFillMode: "both",
+                    }}>
+                      {commentary}
+                    </p>
+                  )}
+                </>
               )}
               {isHost && (
                 <button onClick={nextQuestion} style={{
