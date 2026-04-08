@@ -1,7 +1,7 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import { useRouter } from "next/navigation";
+import { useState, useEffect, Suspense } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import api from "@/lib/api";
 import { gameSocket } from "@/lib/socket";
 import { useGameStore } from "@/store/gameStore";
@@ -14,10 +14,12 @@ const C = {
 };
 
 const difficultyLabel = ["", "Easy", "Medium", "Hard", "Expert", "Master"];
+const difficultyDesc = ["", "Beginner friendly", "Some knowledge needed", "You should know this well", "Deep fan territory", "Obsessive only"];
 const difficultyColor = ["", "#00e5b0", "#6ee7b7", "#f5a623", "#f97316", "#ff4d6d"];
 
-export default function HostPage() {
+function HostPageInner() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const { setGame, setHost, setPlayer, addPlayer, players } = useGameStore();
 
   const [step, setStep] = useState<"setup" | "lobby">("setup");
@@ -31,6 +33,12 @@ export default function HostPage() {
   const [error, setError] = useState("");
   const [questionsReady, setQuestionsReady] = useState(false);
   const [copied, setCopied] = useState(false);
+
+  // Pre-fill topic from quick-start chip on home page
+  useEffect(() => {
+    const topicParam = searchParams.get("topic");
+    if (topicParam) setTopics(topicParam);
+  }, [searchParams]);
 
   useEffect(() => { return () => gameSocket.disconnect(); }, []);
 
@@ -128,9 +136,9 @@ export default function HostPage() {
             {/* Topics */}
             <div>
               <label style={{ display: "block", fontSize: "11px", fontWeight: 600, letterSpacing: "0.1em", textTransform: "uppercase", color: C.muted, marginBottom: "8px" }}>
-                Shows / Anime <span style={{ color: C.border, fontWeight: 400 }}>— optional</span>
+                Topic <span style={{ color: C.border, fontWeight: 400, textTransform: "none", letterSpacing: 0 }}>— optional</span>
               </label>
-              <input value={topics} onChange={(e) => setTopics(e.target.value)} placeholder="e.g. Naruto, Breaking Bad, One Piece" style={inputStyle} />
+              <input value={topics} onChange={(e) => setTopics(e.target.value)} placeholder="e.g. One Piece, Breaking Bad, Marvel…" style={inputStyle} />
               <p style={{ fontSize: "12px", color: C.muted, marginTop: "6px" }}>Leave blank to use the category selector</p>
             </div>
 
@@ -170,6 +178,9 @@ export default function HostPage() {
                   }}>{d}</button>
                 ))}
               </div>
+              <p style={{ fontSize: "12px", color: difficultyColor[difficulty], marginTop: "8px" }}>
+                {difficultyDesc[difficulty]}
+              </p>
             </div>
 
             {/* Question count */}
@@ -190,6 +201,11 @@ export default function HostPage() {
               </div>
             </div>
 
+            {/* Solo hint */}
+            <p style={{ fontSize: "12px", color: C.muted, textAlign: "center" }}>
+              You can play solo or share the code with friends after creating
+            </p>
+
             {/* Submit */}
             <button onClick={createGame} disabled={loading} style={{
               width: "100%", padding: "16px", borderRadius: "12px", fontSize: "15px", fontWeight: 700,
@@ -206,6 +222,7 @@ export default function HostPage() {
     );
   }
 
+  // Lobby — unchanged
   return (
     <main style={{
       minHeight: "100vh", background: C.bg, display: "flex",
@@ -213,7 +230,6 @@ export default function HostPage() {
       padding: "24px", fontFamily: "'DM Sans', sans-serif",
     }}>
       <div style={{ width: "100%", maxWidth: "440px" }}>
-        {/* Game code */}
         <div style={{
           background: C.surface, border: `1px solid ${C.border}`,
           borderRadius: "16px", padding: "32px", textAlign: "center",
@@ -249,7 +265,6 @@ export default function HostPage() {
           </div>
         </div>
 
-        {/* Info */}
         <div style={{
           background: C.surface2, border: `1px solid ${C.border}`,
           borderRadius: "10px", padding: "10px 16px",
@@ -261,7 +276,6 @@ export default function HostPage() {
           <span>Questions: <span style={{ color: C.text }}>{questionCount}</span></span>
         </div>
 
-        {/* Players */}
         <div style={{
           background: C.surface, border: `1px solid ${C.border}`,
           borderRadius: "16px", padding: "16px", marginBottom: "12px",
@@ -309,7 +323,6 @@ export default function HostPage() {
           }}>{error}</div>
         )}
 
-        {/* Questions status */}
         <div style={{
           display: "flex", alignItems: "center", gap: "10px",
           padding: "12px 16px", borderRadius: "10px", marginBottom: "12px",
@@ -331,7 +344,6 @@ export default function HostPage() {
           )}
         </div>
 
-        {/* Start button */}
         <button onClick={startGame} disabled={players.length === 0 || !questionsReady} style={{
           width: "100%", padding: "16px", borderRadius: "12px", fontSize: "15px", fontWeight: 700,
           fontFamily: "'Syne', sans-serif", border: "none",
@@ -343,5 +355,13 @@ export default function HostPage() {
         </button>
       </div>
     </main>
+  );
+}
+
+export default function HostPage() {
+  return (
+    <Suspense fallback={null}>
+      <HostPageInner />
+    </Suspense>
   );
 }
