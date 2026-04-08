@@ -1,9 +1,11 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
 
 export default function Home() {
   const [loadError, setLoadError] = useState(false);
+  const router = useRouter();
 
   useEffect(() => {
     if (typeof window !== "undefined") {
@@ -17,6 +19,15 @@ export default function Home() {
     fetch(`${process.env.NEXT_PUBLIC_API_URL?.replace("/api", "")}/health`)
       .catch(() => {}); // Silently ignore if it fails
   }, []);
+
+  const categories = [
+    { label: "Anime", topic: "Anime" },
+    { label: "TV Shows", topic: "TV Shows" },
+    { label: "One Piece", topic: "One Piece" },
+    { label: "Breaking Bad", topic: "Breaking Bad" },
+    { label: "Marvel", topic: "Marvel" },
+    { label: "Any Topic →", topic: "" },
+  ];
 
   return (
     <main style={{
@@ -61,7 +72,7 @@ export default function Home() {
         {/* Badge */}
         <div style={{
           display: "inline-flex", alignItems: "center", gap: "6px",
-          padding: "6px 14px", borderRadius: "999px", marginBottom: "32px",
+          padding: "6px 14px", borderRadius: "999px", marginBottom: "20px",
           background: "rgba(0,229,176,0.08)",
           border: "1px solid rgba(0,229,176,0.2)",
           color: "#00e5b0", fontSize: "11px", fontWeight: 600,
@@ -80,7 +91,7 @@ export default function Home() {
           fontSize: "clamp(4rem, 15vw, 7rem)",
           fontWeight: 800,
           lineHeight: 1,
-          marginBottom: "12px",
+          marginBottom: "10px",
           letterSpacing: "-0.02em",
         }}>
           <span style={{ color: "#00e5b0" }}>fan</span>
@@ -90,7 +101,7 @@ export default function Home() {
         <p style={{
           color: "#6b6b8a", fontSize: "12px",
           letterSpacing: "0.2em", textTransform: "uppercase",
-          marginBottom: "40px",
+          marginBottom: "28px",
         }}>
           Trivia for obsessives
         </p>
@@ -98,7 +109,7 @@ export default function Home() {
         {/* Stats */}
         <div style={{
           display: "flex", justifyContent: "center", gap: "40px",
-          marginBottom: "40px",
+          marginBottom: "28px",
         }}>
           {[
             { value: "AI", label: "Generated" },
@@ -117,7 +128,7 @@ export default function Home() {
         </div>
 
         {/* Buttons */}
-        <div style={{ display: "flex", flexDirection: "column", gap: "10px", width: "100%" }}>
+        <div style={{ display: "flex", flexDirection: "column", gap: "10px", width: "100%", marginBottom: "24px" }}>
           <a href="/host" style={{
             display: "flex", alignItems: "center", justifyContent: "center", gap: "8px",
             padding: "16px 24px",
@@ -159,18 +170,33 @@ export default function Home() {
           </a>
         </div>
 
-        {/* Tags */}
+        {/* Quick-start chips */}
+        <p style={{ fontSize: "11px", color: "#6b6b8a", letterSpacing: "0.1em", textTransform: "uppercase", marginBottom: "10px" }}>
+          Quick start
+        </p>
         <div style={{
           display: "flex", justifyContent: "center", gap: "8px",
-          flexWrap: "wrap", marginTop: "32px",
+          flexWrap: "wrap", marginBottom: "20px",
         }}>
-          {["Anime", "TV Shows", "Any Show You Want"].map((tag) => (
-            <span key={tag} style={{
-              padding: "4px 12px", borderRadius: "999px", fontSize: "12px",
-              background: "#1c1c27", border: "1px solid #2a2a3a", color: "#6b6b8a",
-            }}>{tag}</span>
+          {categories.map((cat) => (
+            <button
+              key={cat.label}
+              onClick={() => router.push(cat.topic ? `/host?topic=${encodeURIComponent(cat.topic)}` : "/host")}
+              style={{
+                padding: "7px 14px", borderRadius: "999px", fontSize: "13px",
+                background: "#1c1c27", border: "1px solid #2a2a3a", color: "#a0a0b8",
+                cursor: "pointer", whiteSpace: "nowrap", fontFamily: "'DM Sans', sans-serif",
+              }}
+            >
+              {cat.label}
+            </button>
           ))}
         </div>
+
+        <p style={{ fontSize: "12px", color: "#4a4a6a" }}>
+          Play solo or share your code with friends
+        </p>
+
       </div>
     </main>
   );
