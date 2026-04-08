@@ -35,3 +35,20 @@ body {
 
 .fade-up { animation: fadeUp 0.4s ease both; }
 .spin { animation: spin 1s linear infinite; }
+
+/* Prevent iOS zoom on input focus */
+input, select, textarea {
+  font-size: 16px !important;
+}
+
+/* Better touch targets on mobile */
+button {
+  min-height: 44px;
+  touch-action: manipulation;
+}
+
+/* Prevent horizontal scroll on mobile */
+html, body {
+  overflow-x: hidden;
+  -webkit-text-size-adjust: 100%;
+}
