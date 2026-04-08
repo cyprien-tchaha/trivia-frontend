@@ -222,7 +222,7 @@ function HostPageInner() {
     );
   }
 
-  // Lobby — unchanged
+  // Lobby
   return (
     <main style={{
       minHeight: "100vh", background: C.bg, display: "flex",
@@ -230,6 +230,8 @@ function HostPageInner() {
       padding: "24px", fontFamily: "'DM Sans', sans-serif",
     }}>
       <div style={{ width: "100%", maxWidth: "440px" }}>
+
+        {/* Game code — clamp so it never clips */}
         <div style={{
           background: C.surface, border: `1px solid ${C.border}`,
           borderRadius: "16px", padding: "32px", textAlign: "center",
@@ -242,8 +244,9 @@ function HostPageInner() {
           <p style={{ fontSize: "11px", letterSpacing: "0.15em", textTransform: "uppercase", color: C.muted, marginBottom: "12px" }}>Game Code</p>
           <p style={{
             fontFamily: "'Syne', sans-serif", fontWeight: 800,
-            fontSize: "clamp(2.5rem, 10vw, 3.5rem)", letterSpacing: "0.15em",
+            fontSize: "clamp(2rem, 12vw, 3.5rem)", letterSpacing: "0.12em",
             color: C.accent, lineHeight: 1, marginBottom: "12px",
+            wordBreak: "break-all",
           }}>{gameCode}</p>
           <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: "8px", marginTop: "4px" }}>
             <p style={{ fontSize: "12px", color: C.muted }}>playfanatic.app/play/{gameCode}</p>
@@ -254,10 +257,12 @@ function HostPageInner() {
                 setTimeout(() => setCopied(false), 2000);
               }}
               style={{
-                background: "none", border: "none", cursor: "pointer",
-                color: copied ? C.accent : C.muted, fontSize: "12px",
+                cursor: "pointer", fontSize: "12px",
                 padding: "2px 8px", borderRadius: "6px",
-                transition: "color 0.15s ease",
+                transition: "all 0.15s ease",
+                background: copied ? "rgba(0,229,176,0.1)" : "none",
+                border: `1px solid ${copied ? C.accent : "transparent"}`,
+                color: copied ? C.accent : C.muted,
               }}
             >
               {copied ? "✓ Copied!" : "Copy link"}
@@ -265,6 +270,7 @@ function HostPageInner() {
           </div>
         </div>
 
+        {/* Info */}
         <div style={{
           background: C.surface2, border: `1px solid ${C.border}`,
           borderRadius: "10px", padding: "10px 16px",
@@ -276,6 +282,7 @@ function HostPageInner() {
           <span>Questions: <span style={{ color: C.text }}>{questionCount}</span></span>
         </div>
 
+        {/* Players */}
         <div style={{
           background: C.surface, border: `1px solid ${C.border}`,
           borderRadius: "16px", padding: "16px", marginBottom: "12px",
@@ -323,6 +330,7 @@ function HostPageInner() {
           }}>{error}</div>
         )}
 
+        {/* Single status line */}
         <div style={{
           display: "flex", alignItems: "center", gap: "10px",
           padding: "12px 16px", borderRadius: "10px", marginBottom: "12px",
@@ -344,15 +352,27 @@ function HostPageInner() {
           )}
         </div>
 
-        <button onClick={startGame} disabled={players.length === 0 || !questionsReady} style={{
+        {/* Start button — solo allowed once questions ready */}
+        <button onClick={startGame} disabled={!questionsReady} style={{
           width: "100%", padding: "16px", borderRadius: "12px", fontSize: "15px", fontWeight: 700,
           fontFamily: "'Syne', sans-serif", border: "none",
-          background: (players.length === 0 || !questionsReady) ? C.surface2 : C.accent,
-          color: (players.length === 0 || !questionsReady) ? C.muted : "#0a0a0f",
-          cursor: (players.length === 0 || !questionsReady) ? "not-allowed" : "pointer",
+          background: !questionsReady ? C.surface2 : C.accent,
+          color: !questionsReady ? C.muted : "#0a0a0f",
+          cursor: !questionsReady ? "not-allowed" : "pointer",
         }}>
-          {!questionsReady ? "Waiting for questions..." : players.length === 0 ? "Waiting for players..." : `Start Game — ${players.length} player${players.length > 1 ? "s" : ""}`}
+          {!questionsReady
+            ? "Waiting for questions..."
+            : players.length === 0
+              ? "Start Solo →"
+              : `Start Game — ${players.length} player${players.length > 1 ? "s" : ""}`}
         </button>
+
+        {players.length === 0 && questionsReady && (
+          <p style={{ fontSize: "12px", color: C.muted, textAlign: "center", marginTop: "10px" }}>
+            Or share the link above to invite friends
+          </p>
+        )}
+
       </div>
     </main>
   );
