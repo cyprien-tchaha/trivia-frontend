@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { useParams } from "next/navigation";
 import api from "@/lib/api";
 import { gameSocket } from "@/lib/socket";
@@ -83,6 +83,12 @@ export default function GamePage() {
   const [reactionCounter, setReactionCounter] = useState(0);
   const currentQuestion = questions[currentIndex];
 
+  // Refs so socket handler always sees latest values without stale closures
+  const gameIdRef = useRef("");
+  const gameTopicsRef = useRef("");
+  const questionsRef = useRef<Question[]>([]);
+  const currentIndexRef = useRef(0);
+
   const showResult = useCallback((correct: boolean, correct_answer: string, newScore?: number) => {
     setCorrectAnswer(correct_answer);
     if (newScore !== undefined) setScore(newScore);
@@ -107,7 +113,7 @@ export default function GamePage() {
 
   function spawnReaction(emoji: string) {
     const id = Date.now() + Math.random();
-    const x = 10 + Math.random() * 80; // 10–90% horizontal
+    const x = 10 + Math.random() * 80;
     setReactions((prev) => [...prev, { id, emoji, x }]);
     setTimeout(() => {
       setReactions((prev) => prev.filter((r) => r.id !== id));
@@ -125,7 +131,6 @@ export default function GamePage() {
       try {
         const myPlayerId = storePlayerId || localStorage.getItem(`player_id_${code}`);
 
-        // Check localStorage flag first — instant, no API needed
         if (!isHost && myPlayerId) {
           const leftGame = localStorage.getItem(`left_game_${code}`);
           if (leftGame === "true") {
@@ -135,7 +140,6 @@ export default function GamePage() {
           }
         }
 
-        // Also check via API as backup
         if (!isHost && myPlayerId) {
           try {
             const playerCheck = await api.get(`/games/${code}/players`);
@@ -151,7 +155,9 @@ export default function GamePage() {
         const gameRes = await api.get(`/games/${code}`);
         const gameData = gameRes.data;
         setGameId(gameData.game_id);
+        gameIdRef.current = gameData.game_id;
         setGameTopics(gameData.topics || "");
+        gameTopicsRef.current = gameData.topics || "";
 
         if (gameData.status === "finished") {
           const playersRes = await api.get(`/games/${code}/players`);
@@ -173,6 +179,7 @@ export default function GamePage() {
           attempts++;
         }
         setQuestions(qs);
+        questionsRef.current = qs;
 
         if (!isHost && myPlayerId) {
           try {
@@ -184,6 +191,7 @@ export default function GamePage() {
             const resumeData = resumeRes.data;
             const idx = Number(resumeData.current_question_index) || 0;
             setCurrentIndex(idx);
+            currentIndexRef.current = idx;
             setScore(Number(resumeData.player_score) || 0);
             if (resumeData.already_answered) {
               setSelectedAnswer(resumeData.answer as string || "");
@@ -196,11 +204,13 @@ export default function GamePage() {
           } catch {
             const idx = Number(gameData.current_question_index) || 0;
             setCurrentIndex(idx);
+            currentIndexRef.current = idx;
             setPhase("question");
           }
         } else {
           const idx = Number(gameData.current_question_index) || 0;
           setCurrentIndex(idx);
+          currentIndexRef.current = idx;
         }
       } catch (e) {
         console.error("Failed to load game", e);
@@ -254,20 +264,10 @@ export default function GamePage() {
             setPlayers(pr.data);
             const rightCount = (msg.correct_count as number) ?? 0;
             const totalCount = pr.data.length;
-            setGameId((gId) => {
-              setQuestions((qs) => {
-                setCurrentIndex((idx) => {
-                  const q = qs[idx];
-                  setGameTopics((topics) => {
-                    if (q && gId) fetchCommentary(gId, q, rightCount, totalCount, topics);
-                    return topics;
-                  });
-                  return idx;
-                });
-                return qs;
-              });
-              return gId;
-            });
+            const q = questionsRef.current[currentIndexRef.current];
+            if (q && gameIdRef.current) {
+              fetchCommentary(gameIdRef.current, q, rightCount, totalCount, gameTopicsRef.current);
+            }
           } catch {}
         })();
       }
@@ -284,6 +284,7 @@ export default function GamePage() {
       if (msg.event === "next_question") {
         const idx = msg.question_index as number;
         setCurrentIndex(idx);
+        currentIndexRef.current = idx;
         setSelectedAnswer(null);
         setCorrectAnswer(null);
         setTimeLeft(60);
@@ -331,6 +332,7 @@ export default function GamePage() {
       if (msg.event === "game_reset") {
         setResetting(true);
         setCurrentIndex(0);
+        currentIndexRef.current = 0;
         setSelectedAnswer(null);
         setCorrectAnswer(null);
         setTimeLeft(60);
@@ -340,6 +342,7 @@ export default function GamePage() {
         setReactions([]);
         setPlayers([]);
         setQuestions([]);
+        questionsRef.current = [];
         setPhase("question");
         (async () => {
           try {
@@ -353,6 +356,7 @@ export default function GamePage() {
               attempts++;
             }
             setQuestions(qs);
+            questionsRef.current = qs;
             setAnswerStart(Date.now());
           } catch {}
           finally { setResetting(false); }
@@ -494,6 +498,7 @@ export default function GamePage() {
       } catch { setPhase("finished"); }
     } else {
       setCurrentIndex(nextIndex);
+      currentIndexRef.current = nextIndex;
       setTimeLeft(60);
       setPhase("question");
       setAnswerStart(Date.now());
@@ -625,6 +630,7 @@ export default function GamePage() {
                   await api.post(`/questions/${gameData.game_id}/generate`);
                   setPhase("question");
                   setCurrentIndex(0);
+                  currentIndexRef.current = 0;
                   setSelectedAnswer(null);
                   setCorrectAnswer(null);
                   setTimeLeft(60);
@@ -642,6 +648,7 @@ export default function GamePage() {
                     attempts++;
                   }
                   setQuestions(qs);
+                  questionsRef.current = qs;
                   setAnswerStart(Date.now());
                   gameSocket.send({ event: "game_reset", game_id: gameData.game_id });
                 } catch (e) { console.error("Reset failed", e); }
@@ -903,7 +910,6 @@ export default function GamePage() {
         </div>
       )}
 
-      {/* floatUp keyframe injected inline */}
       <style>{`
         @keyframes floatUp {
           0%   { transform: translateY(0) scale(1);   opacity: 1; }
