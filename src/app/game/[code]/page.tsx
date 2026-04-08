@@ -13,6 +13,8 @@ const C = {
   danger: "#ff4d6d", text: "#f0f0f8", muted: "#6b6b8a",
 };
 
+type FloatingReaction = { id: number; emoji: string; x: number };
+
 function ReportButton({ questionId, code }: { questionId?: string; code: string }) {
   const [reported, setReported] = useState(false);
   const [reporting, setReporting] = useState(false);
@@ -77,6 +79,8 @@ export default function GamePage() {
   const [commentary, setCommentary] = useState<string>("");
   const [gameId, setGameId] = useState<string>("");
   const [gameTopics, setGameTopics] = useState<string>("");
+  const [reactions, setReactions] = useState<FloatingReaction[]>([]);
+  const [reactionCounter, setReactionCounter] = useState(0);
   const currentQuestion = questions[currentIndex];
 
   const showResult = useCallback((correct: boolean, correct_answer: string, newScore?: number) => {
@@ -99,6 +103,21 @@ export default function GamePage() {
     } catch {
       setCommentary("");
     }
+  }
+
+  function spawnReaction(emoji: string) {
+    const id = Date.now() + Math.random();
+    const x = 10 + Math.random() * 80; // 10–90% horizontal
+    setReactions((prev) => [...prev, { id, emoji, x }]);
+    setTimeout(() => {
+      setReactions((prev) => prev.filter((r) => r.id !== id));
+    }, 1800);
+  }
+
+  function sendReaction(emoji: string) {
+    setReactionCounter((n) => n + 1);
+    gameSocket.send({ event: "reaction", emoji });
+    spawnReaction(emoji);
   }
 
   useEffect(() => {
@@ -185,7 +204,6 @@ export default function GamePage() {
         }
       } catch (e) {
         console.error("Failed to load game", e);
-        // Game failed to load — redirect home with message
         if (typeof window !== "undefined") {
           window.location.href = "/?error=game_load_failed";
         }
@@ -201,6 +219,11 @@ export default function GamePage() {
     }
 
     const unsub = gameSocket.onMessage((msg: Record<string, unknown>) => {
+      if (msg.event === "reaction") {
+        spawnReaction(msg.emoji as string);
+        return;
+      }
+
       if (msg.event === "answer_result") {
         const ca = msg.correct_answer as string;
         const msgPlayerId = msg.player_id as string;
@@ -269,6 +292,7 @@ export default function GamePage() {
         setAnswerSubmitted(false);
         setAllAnswered(false);
         setCommentary("");
+        setReactions([]);
       }
 
       if (msg.event === "game_finished") {
@@ -279,25 +303,20 @@ export default function GamePage() {
       if (msg.event === "player_left") {
         const leftId = msg.player_id as string;
         setPlayers((prev) => prev.filter((p) => p.id !== leftId));
-        
-        // Check using localStorage directly — not stale closure variable
         const amHostNow = localStorage.getItem(`host_${code}`) === "true";
         console.log("player_left, amHostNow:", amHostNow);
-        
         if (amHostNow) {
           setTimeout(async () => {
             try {
               const playersRes = await api.get(`/games/${code}/players`);
               const activePlayers = playersRes.data;
               if (activePlayers.length === 0) return;
-              
               const gameRes = await api.get(`/games/${code}`);
               const gameData = gameRes.data;
               const qRes = await api.get(`/questions/${gameData.game_id}`);
               const qs = qRes.data;
               const currentQ = qs[gameData.current_question_index];
               if (!currentQ) return;
-              
               const answersRes = await api.get(`/games/${code}/question-answers/${currentQ.id}`);
               console.log("answers:", answersRes.data.count, "players:", activePlayers.length);
               if (answersRes.data.count >= activePlayers.length) {
@@ -305,7 +324,7 @@ export default function GamePage() {
                 setCorrectAnswer(currentQ.correct_answer);
               }
             } catch (e) { console.log("error:", e); }
-          }, 1500); // Wait 1.5s for leave endpoint to complete
+          }, 1500);
         }
       }
 
@@ -318,6 +337,7 @@ export default function GamePage() {
         setScore(0);
         setCorrectCount(0);
         setCommentary("");
+        setReactions([]);
         setPlayers([]);
         setQuestions([]);
         setPhase("question");
@@ -349,8 +369,6 @@ export default function GamePage() {
       if (isHost) setAllAnswered(true);
       return;
     }
-
-    // Every tick, if host, check if all active players answered
     if (isHost && currentQuestion) {
       (async () => {
         try {
@@ -364,7 +382,6 @@ export default function GamePage() {
         } catch {}
       })();
     }
-
     const t = setTimeout(() => setTimeLeft((n) => n - 1), 1000);
     return () => clearTimeout(t);
   }, [timeLeft, phase, selectedAnswer, isHost, currentQuestion]);
@@ -392,7 +409,6 @@ export default function GamePage() {
 
   useEffect(() => {
     if (phase === "finished") return;
-
     const handleBeforeUnload = (e: BeforeUnloadEvent) => {
       e.preventDefault();
       e.returnValue = "Are you sure you want to leave? You will be removed from the game.";
@@ -405,8 +421,6 @@ export default function GamePage() {
       }
       return e.returnValue;
     };
-
-    // Mobile browsers use pagehide instead of beforeunload
     const handlePageHide = () => {
       if (!isHost && playerId) {
         localStorage.setItem(`left_game_${code}`, "true");
@@ -416,7 +430,6 @@ export default function GamePage() {
         );
       }
     };
-
     window.addEventListener("beforeunload", handleBeforeUnload);
     window.addEventListener("pagehide", handlePageHide);
     return () => {
@@ -472,6 +485,7 @@ export default function GamePage() {
     setAllAnswered(false);
     setAnswerSubmitted(false);
     setCommentary("");
+    setReactions([]);
     if (nextIndex >= questions.length) {
       try {
         const pr = await api.get(`/games/${code}/players`);
@@ -559,7 +573,6 @@ export default function GamePage() {
               <p style={{ fontSize: "12px", color: C.muted, marginTop: "4px" }}>Solo game</p>
             )}
           </div>
-
           {!isHost && myPlayer && (
             <div style={{
               background: "rgba(0,229,176,0.06)", border: "1px solid rgba(0,229,176,0.15)",
@@ -582,7 +595,6 @@ export default function GamePage() {
               </div>
             </div>
           )}
-
           <p style={{ fontSize: "11px", letterSpacing: "0.12em", textTransform: "uppercase", color: C.muted, marginBottom: "8px" }}>Final Standings</p>
           <div style={{ display: "flex", flexDirection: "column", gap: "8px", marginBottom: "20px" }}>
             {sorted.map((p, i) => (
@@ -602,7 +614,6 @@ export default function GamePage() {
               </div>
             ))}
           </div>
-
           {isHost ? (
             <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
               <button onClick={async () => {
@@ -620,6 +631,7 @@ export default function GamePage() {
                   setScore(0);
                   setCorrectCount(0);
                   setCommentary("");
+                  setReactions([]);
                   setPlayers([]);
                   let qs: Question[] = [];
                   let attempts = 0;
@@ -674,7 +686,26 @@ export default function GamePage() {
   const circumference = 2 * Math.PI * 24;
 
   return (
-    <main style={{ minHeight: "100vh", background: C.bg, display: "flex", flexDirection: "column", padding: "16px", maxWidth: "640px", margin: "0 auto", fontFamily: "'DM Sans', sans-serif" }}>
+    <main style={{ minHeight: "100vh", background: C.bg, display: "flex", flexDirection: "column", padding: "16px", maxWidth: "640px", margin: "0 auto", fontFamily: "'DM Sans', sans-serif", position: "relative", overflow: "hidden" }}>
+
+      {/* Floating reactions */}
+      {reactions.map((r) => (
+        <div key={r.id} style={{
+          position: "absolute",
+          left: `${r.x}%`,
+          bottom: "80px",
+          fontSize: "28px",
+          pointerEvents: "none",
+          animationName: "floatUp",
+          animationDuration: "1.8s",
+          animationTimingFunction: "ease-out",
+          animationFillMode: "forwards",
+          zIndex: 50,
+        }}>
+          {r.emoji}
+        </div>
+      ))}
+
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", paddingTop: "16px", marginBottom: "16px" }}>
         <div>
           <p style={{ fontSize: "10px", letterSpacing: "0.12em", textTransform: "uppercase", color: C.muted }}>Question</p>
@@ -757,7 +788,6 @@ export default function GamePage() {
             }}>Lock In Answer →</button>
           )}
 
-          {/* Compact hint — no dashed box */}
           {phase === "question" && !isHost && !selectedAnswer && (
             <p style={{ textAlign: "center", color: C.muted, fontSize: "13px", padding: "4px 0" }}>
               Select an answer above
@@ -847,8 +877,40 @@ export default function GamePage() {
               </div>
             </div>
           )}
+
+          {/* Reaction bar — all players and host */}
+          <div style={{
+            display: "flex", justifyContent: "center", gap: "12px",
+            paddingTop: "4px", paddingBottom: "8px",
+          }}>
+            {["🔥", "😱", "💀"].map((emoji) => (
+              <button
+                key={emoji}
+                onClick={() => sendReaction(emoji)}
+                style={{
+                  background: C.surface2, border: `1px solid ${C.border}`,
+                  borderRadius: "999px", padding: "8px 16px",
+                  fontSize: "20px", cursor: "pointer",
+                  transition: "transform 0.1s ease, border-color 0.1s ease",
+                }}
+                onMouseDown={(e) => (e.currentTarget.style.transform = "scale(0.92)")}
+                onMouseUp={(e) => (e.currentTarget.style.transform = "scale(1)")}
+              >
+                {emoji}
+              </button>
+            ))}
+          </div>
         </div>
       )}
+
+      {/* floatUp keyframe injected inline */}
+      <style>{`
+        @keyframes floatUp {
+          0%   { transform: translateY(0) scale(1);   opacity: 1; }
+          80%  { transform: translateY(-160px) scale(1.2); opacity: 0.8; }
+          100% { transform: translateY(-200px) scale(0.8); opacity: 0; }
+        }
+      `}</style>
     </main>
   );
 }
