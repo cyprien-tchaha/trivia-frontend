@@ -449,6 +449,13 @@ export default function GamePage() {
   // Fetch commentary when host sees allAnswered (covers timer expiry + polling path)
   // commentaryFetchedRef prevents double-firing when both socket and this effect trigger
   useEffect(() => {
+    console.log("allAnswered effect fired", {
+      allAnswered,
+      isHost,
+      commentaryFetched: commentaryFetchedRef.current,
+      gameId: gameIdRef.current,
+      questionCount: questionsRef.current.length,
+    });
     if (!allAnswered || !isHost) return;
     if (commentaryFetchedRef.current) return;
     const q = questionsRef.current[currentIndexRef.current];
