@@ -377,7 +377,7 @@ export default function GamePage() {
       if (isHost) setAllAnswered(true);
       return;
     }
-    if (isHost && currentQuestion) {
+    if (isHost && currentQuestion && timeLeft % 3 === 0) {
       (async () => {
         try {
           const playersRes = await api.get(`/games/${code}/players`);
