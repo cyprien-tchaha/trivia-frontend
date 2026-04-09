@@ -88,6 +88,7 @@ export default function GamePage() {
   const gameTopicsRef = useRef("");
   const questionsRef = useRef<Question[]>([]);
   const currentIndexRef = useRef(0);
+  const commentaryFetchedRef = useRef(false);
 
   const showResult = useCallback((correct: boolean, correct_answer: string, newScore?: number) => {
     setCorrectAnswer(correct_answer);
@@ -265,7 +266,8 @@ export default function GamePage() {
             const rightCount = (msg.correct_count as number) ?? 0;
             const totalCount = pr.data.length;
             const q = questionsRef.current[currentIndexRef.current];
-            if (q && gameIdRef.current) {
+            if (q && gameIdRef.current && !commentaryFetchedRef.current) {
+              commentaryFetchedRef.current = true;
               fetchCommentary(gameIdRef.current, q, rightCount, totalCount, gameTopicsRef.current);
             }
           } catch {}
@@ -294,6 +296,7 @@ export default function GamePage() {
         setAllAnswered(false);
         setCommentary("");
         setReactions([]);
+        commentaryFetchedRef.current = false;
       }
 
       if (msg.event === "game_finished") {
@@ -343,6 +346,7 @@ export default function GamePage() {
         setPlayers([]);
         setQuestions([]);
         questionsRef.current = [];
+        commentaryFetchedRef.current = false;
         setPhase("question");
         (async () => {
           try {
@@ -442,6 +446,24 @@ export default function GamePage() {
     };
   }, [phase, playerId, code, isHost]);
 
+  // Fetch commentary when host sees allAnswered (covers timer expiry + polling path)
+  // commentaryFetchedRef prevents double-firing when both socket and this effect trigger
+  useEffect(() => {
+    if (!allAnswered || !isHost) return;
+    if (commentaryFetchedRef.current) return;
+    const q = questionsRef.current[currentIndexRef.current];
+    if (!q || !gameIdRef.current) return;
+    commentaryFetchedRef.current = true;
+    (async () => {
+      try {
+        const answersRes = await api.get(`/games/${code}/question-answers/${q.id}`);
+        const pr = await api.get(`/games/${code}/players`);
+        const correctCount = answersRes.data.correct_count ?? 0;
+        fetchCommentary(gameIdRef.current, q, correctCount, pr.data.length, gameTopicsRef.current);
+      } catch {}
+    })();
+  }, [allAnswered]);
+
   async function handleTimeout() {
     if (!currentQuestion || !playerId) return;
     const answerToSubmit = selectedAnswer || "";
@@ -490,6 +512,7 @@ export default function GamePage() {
     setAnswerSubmitted(false);
     setCommentary("");
     setReactions([]);
+    commentaryFetchedRef.current = false;
     if (nextIndex >= questions.length) {
       try {
         const pr = await api.get(`/games/${code}/players`);
@@ -638,6 +661,7 @@ export default function GamePage() {
                   setCorrectCount(0);
                   setCommentary("");
                   setReactions([]);
+                  commentaryFetchedRef.current = false;
                   setPlayers([]);
                   let qs: Question[] = [];
                   let attempts = 0;
@@ -693,14 +717,14 @@ export default function GamePage() {
   const circumference = 2 * Math.PI * 24;
 
   return (
-    <main style={{ minHeight: "100vh", background: C.bg, display: "flex", flexDirection: "column", padding: "16px", maxWidth: "640px", margin: "0 auto", fontFamily: "'DM Sans', sans-serif", position: "relative", overflow: "hidden" }}>
+    <main style={{ minHeight: "100vh", background: C.bg, display: "flex", flexDirection: "column", padding: "16px", maxWidth: "640px", margin: "0 auto", fontFamily: "'DM Sans', sans-serif", position: "relative", overflow: "visible" }}>
 
-      {/* Floating reactions */}
+      {/* Floating reactions — fixed so they're never clipped */}
       {reactions.map((r) => (
         <div key={r.id} style={{
-          position: "absolute",
+          position: "fixed",
           left: `${r.x}%`,
-          bottom: "80px",
+          bottom: "120px",
           fontSize: "28px",
           pointerEvents: "none",
           animationName: "floatUp",
