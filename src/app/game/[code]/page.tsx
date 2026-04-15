@@ -389,6 +389,39 @@ export default function GamePage() {
           finally { setResetting(false); }
         })();
       }
+
+      if (msg.event === "socket_reconnected") {
+        // Re-sync game state from server after reconnect
+        (async () => {
+          try {
+            const gameRes = await api.get(`/games/${code}`);
+            const gameData = gameRes.data;
+            if (gameData.status === "finished") {
+              const pr = await api.get(`/games/${code}/players`);
+              setPlayers(pr.data);
+              setPhase("finished");
+              return;
+            }
+            const si = gameData.current_question_index;
+            if (si !== currentIndexRef.current) {
+              // Game moved on while we were disconnected
+              setCurrentIndex(si);
+              currentIndexRef.current = si;
+              setSelectedAnswer(null);
+              setCorrectAnswer(null);
+              setTimeLeft(60);
+              setPhase("question");
+              setAnswerStart(Date.now());
+              setAllAnswered(false);
+              setCommentary("");
+              commentaryFetchedRef.current = false;
+            }
+            const pr = await api.get(`/games/${code}/players`);
+            setPlayers(pr.data);
+          } catch {}
+        })();
+      }
+      
     });
     return unsub;
   }, [code, showResult]);
