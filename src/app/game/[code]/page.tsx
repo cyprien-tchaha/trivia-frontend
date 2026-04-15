@@ -285,8 +285,13 @@ export default function GamePage() {
       }
 
       if (msg.event === "all_answered") {
+        const msgQuestionId = msg.question_id as string;
+        const currentQ = questionsRef.current[currentIndexRef.current];
+        if (msgQuestionId && currentQ && msgQuestionId !== currentQ.id) return;
         setAllAnswered(true);
-        setCorrectAnswer(msg.correct_answer as string);
+        // Only set correctAnswer for host — players get it from their own submission
+        const amHost = localStorage.getItem(`host_${code}`) === "true";
+        if (amHost) setCorrectAnswer(msg.correct_answer as string);
         (async () => {
           try {
             const pr = await api.get(`/games/${code}/players`);
