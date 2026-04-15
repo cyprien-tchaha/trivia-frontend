@@ -39,6 +39,8 @@ class GameSocket {
         clearTimeout(this.reconnectTimer);
         this.reconnectTimer = null;
       }
+      // Notify listeners that socket reconnected so they can re-sync state
+      this.handlers.forEach((h) => h({ event: "socket_reconnected" }));
     };
 
     this.ws.onmessage = (e) => {
