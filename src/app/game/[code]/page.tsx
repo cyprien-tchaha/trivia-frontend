@@ -130,6 +130,7 @@ export default function GamePage() {
     async function loadGame() {
       try {
         const myPlayerId = storePlayerId || localStorage.getItem(`player_id_${code}`);
+        let playerNeedsResume = false;
 
         if (!isHost && myPlayerId) {
           const leftGame = localStorage.getItem(`left_game_${code}`);
@@ -141,6 +142,7 @@ export default function GamePage() {
             setLoading(false);
             return;
           } else if (hideWasRecent) {
+            playerNeedsResume = true;
             localStorage.removeItem(`last_hide_${code}`);
             localStorage.removeItem(`left_game_${code}`);
           }
@@ -188,17 +190,14 @@ export default function GamePage() {
         questionsRef.current = qs;
 
         if (!isHost && myPlayerId) {
-          const lastHide = localStorage.getItem(`last_hide_${code}`);
-          const needsResume = lastHide && (Date.now() - parseInt(lastHide)) < 30000;
-
-          if (!needsResume) {
+          if (!playerNeedsResume) {
             // Player never left — just sync index from server, do NOT call /resume
             const idx = Number(gameData.current_question_index) || 0;
             setCurrentIndex(idx);
             currentIndexRef.current = idx;
             setPhase("question");
           } else {
-            // Player actually left recently — call /resume to restore their state
+            // Player refreshed — call /resume to clear grace window and restore state
             try {
               const resumePromise = api.get(`/games/${code}/resume/${myPlayerId}`);
               const timeoutPromise = new Promise((_, reject) =>
