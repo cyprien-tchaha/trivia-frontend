@@ -83,7 +83,6 @@ export default function GamePage() {
   const [reactionCounter, setReactionCounter] = useState(0);
   const currentQuestion = questions[currentIndex];
 
-  // Refs so socket handler always sees latest values without stale closures
   const gameIdRef = useRef("");
   const gameTopicsRef = useRef("");
   const questionsRef = useRef<Question[]>([]);
@@ -134,10 +133,19 @@ export default function GamePage() {
 
         if (!isHost && myPlayerId) {
           const leftGame = localStorage.getItem(`left_game_${code}`);
-          if (leftGame === "true") {
+          const lastHide = localStorage.getItem(`last_hide_${code}`);
+          const hideWasRecent = lastHide && (Date.now() - parseInt(lastHide)) < 30000;
+
+          if (leftGame === "true" && !hideWasRecent) {
+            // Truly left — show kicked screen
             setKicked(true);
             setLoading(false);
             return;
+          } else if (hideWasRecent) {
+            // Recent hide — refresh or accidental close, try to resume
+            localStorage.removeItem(`last_hide_${code}`);
+            localStorage.removeItem(`left_game_${code}`);
+            // Fall through to normal load
           }
         }
 
@@ -304,6 +312,15 @@ export default function GamePage() {
         setPhase("finished");
       }
 
+      if (msg.event === "player_rejoined") {
+        const rejoined = msg.player as Player;
+        setPlayers((prev) => {
+          const exists = prev.find((p) => p.id === rejoined.id);
+          if (exists) return prev.map((p) => p.id === rejoined.id ? rejoined : p);
+          return [...prev, rejoined];
+        });
+      }
+
       if (msg.event === "player_left") {
         const leftId = msg.player_id as string;
         setPlayers((prev) => prev.filter((p) => p.id !== leftId));
@@ -421,7 +438,7 @@ export default function GamePage() {
       e.preventDefault();
       e.returnValue = "Are you sure you want to leave? You will be removed from the game.";
       if (!isHost && playerId) {
-        localStorage.setItem(`left_game_${code}`, "true");
+        localStorage.setItem(`last_hide_${code}`, Date.now().toString());
         navigator.sendBeacon(
           `${process.env.NEXT_PUBLIC_API_URL}/games/${code}/leave`,
           JSON.stringify({ player_id: playerId })
@@ -431,7 +448,7 @@ export default function GamePage() {
     };
     const handlePageHide = () => {
       if (!isHost && playerId) {
-        localStorage.setItem(`left_game_${code}`, "true");
+        localStorage.setItem(`last_hide_${code}`, Date.now().toString());
         navigator.sendBeacon(
           `${process.env.NEXT_PUBLIC_API_URL}/games/${code}/leave`,
           JSON.stringify({ player_id: playerId })
@@ -446,8 +463,6 @@ export default function GamePage() {
     };
   }, [phase, playerId, code, isHost]);
 
-  // Fetch commentary when host sees allAnswered (covers timer expiry + polling path)
-  // commentaryFetchedRef prevents double-firing when both socket and this effect trigger
   useEffect(() => {
     if (!allAnswered || !isHost) return;
     if (commentaryFetchedRef.current) return;
@@ -719,7 +734,6 @@ export default function GamePage() {
   return (
     <main style={{ minHeight: "100vh", background: C.bg, display: "flex", flexDirection: "column", padding: "16px", maxWidth: "640px", margin: "0 auto", fontFamily: "'DM Sans', sans-serif", position: "relative", overflow: "visible" }}>
 
-      {/* Floating reactions — fixed so they're never clipped */}
       {reactions.map((r) => (
         <div key={r.id} style={{
           position: "fixed",
@@ -909,7 +923,6 @@ export default function GamePage() {
             </div>
           )}
 
-          {/* Reaction bar — all players and host */}
           <div style={{
             display: "flex", justifyContent: "center", gap: "12px",
             paddingTop: "4px", paddingBottom: "8px",
