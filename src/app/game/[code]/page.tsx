@@ -272,13 +272,9 @@ export default function GamePage() {
           if (ca) setCorrectAnswer(ca);
           setAnswerSubmitted(true);
         } else if (msgPlayerId === myPlayerId) {
+          setScore(msg.score as number);
           setPhase((prev) => {
-            if (prev !== "result") {
-              if (ca) setCorrectAnswer(ca);
-              setScore(msg.score as number);
-              return "result";
-            }
-            if (ca) setCorrectAnswer(ca);
+            if (prev !== "result") return "result";
             return prev;
           });
         }
