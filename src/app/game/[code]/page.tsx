@@ -539,6 +539,7 @@ export default function GamePage() {
 
   async function handleTimeout() {
     if (!currentQuestion || !playerId) return;
+    const questionId = currentQuestion.id;
     const answerToSubmit = selectedAnswer || "";
     setSelectedAnswer(answerToSubmit || "__timeout__");
     const timeTaken = Date.now() - answerStart;
@@ -547,9 +548,14 @@ export default function GamePage() {
         player_id: playerId, question_id: currentQuestion.id,
         answer: answerToSubmit, time_taken_ms: timeTaken,
       });
-      showResult(res.data.correct, res.data.correct_answer ?? "", res.data.score);
+      // Only show result if still on the same question
+      if (questionsRef.current[currentIndexRef.current]?.id === questionId) {
+        showResult(res.data.correct, res.data.correct_answer ?? "", res.data.score);
+      }
     } catch {
-      showResult(false, currentQuestion.correct_answer ?? "");
+      if (questionsRef.current[currentIndexRef.current]?.id === questionId) {
+        showResult(false, currentQuestion.correct_answer ?? "");
+      }
     }
   }
 
