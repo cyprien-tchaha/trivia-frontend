@@ -247,6 +247,11 @@ export default function GamePage() {
     }
 
     const unsub = gameSocket.onMessage((msg: Record<string, unknown>) => {
+      if (msg.event !== "reaction") {
+        const currentQ = questionsRef.current[currentIndexRef.current];
+        console.log(`[SOCKET] event=${msg.event} currentQ=${currentQ?.id?.slice(0,8)} msgQ=${(msg.question_id as string)?.slice(0,8)} phase=${phase} correctAnswer=${correctAnswer}`);
+      }
+      
       if (msg.event === "reaction") {
         spawnReaction(msg.emoji as string);
         return;
