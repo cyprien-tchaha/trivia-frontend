@@ -246,8 +246,14 @@ export default function GamePage() {
       if (msg.event === "answer_result") {
         const ca = msg.correct_answer as string;
         const msgPlayerId = msg.player_id as string;
+        const msgQuestionId = msg.question_id as string;
         const myPlayerId = storePlayerId || localStorage.getItem(`player_id_${code}`);
         const amHost = localStorage.getItem(`host_${code}`) === "true";
+
+        // Ignore answer_result for a different question than current
+        const currentQ = questionsRef.current[currentIndexRef.current];
+        if (msgQuestionId && currentQ && msgQuestionId !== currentQ.id) return;
+
         if (amHost) {
           if (ca) setCorrectAnswer(ca);
           setAnswerSubmitted(true);
