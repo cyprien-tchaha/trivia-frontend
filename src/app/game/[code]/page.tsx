@@ -137,15 +137,12 @@ export default function GamePage() {
           const hideWasRecent = lastHide && (Date.now() - parseInt(lastHide)) < 30000;
 
           if (leftGame === "true" && !hideWasRecent) {
-            // Truly left — show kicked screen
             setKicked(true);
             setLoading(false);
             return;
           } else if (hideWasRecent) {
-            // Recent hide — refresh or accidental close, try to resume
             localStorage.removeItem(`last_hide_${code}`);
             localStorage.removeItem(`left_game_${code}`);
-            // Fall through to normal load
           }
         }
 
@@ -191,30 +188,42 @@ export default function GamePage() {
         questionsRef.current = qs;
 
         if (!isHost && myPlayerId) {
-          try {
-            const resumePromise = api.get(`/games/${code}/resume/${myPlayerId}`);
-            const timeoutPromise = new Promise((_, reject) =>
-              setTimeout(() => reject(new Error("timeout")), 3000)
-            );
-            const resumeRes = await Promise.race([resumePromise, timeoutPromise]) as { data: Record<string, unknown> };
-            const resumeData = resumeRes.data;
-            const idx = Number(resumeData.current_question_index) || 0;
-            setCurrentIndex(idx);
-            currentIndexRef.current = idx;
-            setScore(Number(resumeData.player_score) || 0);
-            if (resumeData.already_answered) {
-              setSelectedAnswer(resumeData.answer as string || "");
-              setCorrectAnswer(resumeData.correct_answer as string || "");
-              setPhase("result");
-            } else {
-              setPhase("question");
-              setTimeLeft(60);
-            }
-          } catch {
+          const lastHide = localStorage.getItem(`last_hide_${code}`);
+          const needsResume = lastHide && (Date.now() - parseInt(lastHide)) < 30000;
+
+          if (!needsResume) {
+            // Player never left — just sync index from server, do NOT call /resume
             const idx = Number(gameData.current_question_index) || 0;
             setCurrentIndex(idx);
             currentIndexRef.current = idx;
             setPhase("question");
+          } else {
+            // Player actually left recently — call /resume to restore their state
+            try {
+              const resumePromise = api.get(`/games/${code}/resume/${myPlayerId}`);
+              const timeoutPromise = new Promise((_, reject) =>
+                setTimeout(() => reject(new Error("timeout")), 3000)
+              );
+              const resumeRes = await Promise.race([resumePromise, timeoutPromise]) as { data: Record<string, unknown> };
+              const resumeData = resumeRes.data;
+              const idx = Number(resumeData.current_question_index) || 0;
+              setCurrentIndex(idx);
+              currentIndexRef.current = idx;
+              setScore(Number(resumeData.player_score) || 0);
+              if (resumeData.already_answered) {
+                setSelectedAnswer(resumeData.answer as string || "");
+                setCorrectAnswer(resumeData.correct_answer as string || "");
+                setPhase("result");
+              } else {
+                setPhase("question");
+                setTimeLeft(60);
+              }
+            } catch {
+              const idx = Number(gameData.current_question_index) || 0;
+              setCurrentIndex(idx);
+              currentIndexRef.current = idx;
+              setPhase("question");
+            }
           }
         } else {
           const idx = Number(gameData.current_question_index) || 0;
@@ -421,7 +430,7 @@ export default function GamePage() {
           } catch {}
         })();
       }
-      
+
     });
     return unsub;
   }, [code, showResult]);
