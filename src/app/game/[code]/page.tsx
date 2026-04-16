@@ -73,7 +73,6 @@ export default function GamePage() {
   const [answerStart, setAnswerStart] = useState(Date.now());
   const [loading, setLoading] = useState(true);
   const [resetting, setResetting] = useState(false);
-  const [kicked, setKicked] = useState(false);
   const [answerSubmitted, setAnswerSubmitted] = useState(false);
   const [allAnswered, setAllAnswered] = useState(false);
   const [commentary, setCommentary] = useState<string>("");
@@ -129,37 +128,6 @@ export default function GamePage() {
   useEffect(() => {
     async function loadGame() {
       try {
-        const myPlayerId = storePlayerId || localStorage.getItem(`player_id_${code}`);
-        let playerNeedsResume = false;
-
-        if (!isHost && myPlayerId) {
-          const leftGame = localStorage.getItem(`left_game_${code}`);
-          const lastHide = localStorage.getItem(`last_hide_${code}`);
-          const hideWasRecent = lastHide && (Date.now() - parseInt(lastHide)) < 30000;
-
-          if (leftGame === "true" && !hideWasRecent) {
-            setKicked(true);
-            setLoading(false);
-            return;
-          } else if (hideWasRecent) {
-            playerNeedsResume = true;
-            localStorage.removeItem(`last_hide_${code}`);
-            localStorage.removeItem(`left_game_${code}`);
-          }
-        }
-
-        if (!isHost && myPlayerId) {
-          try {
-            const playerCheck = await api.get(`/games/${code}/players`);
-            const stillInGame = playerCheck.data.find((p: { id: string }) => p.id === myPlayerId);
-            if (!stillInGame) {
-              setKicked(true);
-              setLoading(false);
-              return;
-            }
-          } catch {}
-        }
-
         const gameRes = await api.get(`/games/${code}`);
         const gameData = gameRes.data;
         setGameId(gameData.game_id);
@@ -189,46 +157,11 @@ export default function GamePage() {
         setQuestions(qs);
         questionsRef.current = qs;
 
-        if (!isHost && myPlayerId) {
-          if (!playerNeedsResume) {
-            // Player never left — just sync index from server, do NOT call /resume
-            const idx = Number(gameData.current_question_index) || 0;
-            setCurrentIndex(idx);
-            currentIndexRef.current = idx;
-            setPhase("question");
-          } else {
-            // Player refreshed — call /resume to clear grace window and restore state
-            try {
-              const resumePromise = api.get(`/games/${code}/resume/${myPlayerId}`);
-              const timeoutPromise = new Promise((_, reject) =>
-                setTimeout(() => reject(new Error("timeout")), 3000)
-              );
-              const resumeRes = await Promise.race([resumePromise, timeoutPromise]) as { data: Record<string, unknown> };
-              const resumeData = resumeRes.data;
-              const idx = Number(resumeData.current_question_index) || 0;
-              setCurrentIndex(idx);
-              currentIndexRef.current = idx;
-              setScore(Number(resumeData.player_score) || 0);
-              if (resumeData.already_answered) {
-                setSelectedAnswer(resumeData.answer as string || "");
-                setCorrectAnswer(resumeData.correct_answer as string || "");
-                setPhase("result");
-              } else {
-                setPhase("question");
-                setTimeLeft(60);
-              }
-            } catch {
-              const idx = Number(gameData.current_question_index) || 0;
-              setCurrentIndex(idx);
-              currentIndexRef.current = idx;
-              setPhase("question");
-            }
-          }
-        } else {
-          const idx = Number(gameData.current_question_index) || 0;
-          setCurrentIndex(idx);
-          currentIndexRef.current = idx;
-        }
+        const idx = Number(gameData.current_question_index) || 0;
+        setCurrentIndex(idx);
+        currentIndexRef.current = idx;
+        if (!isHost) setPhase("question");
+
       } catch (e) {
         console.error("Failed to load game", e);
         if (typeof window !== "undefined") {
@@ -246,11 +179,6 @@ export default function GamePage() {
     }
 
     const unsub = gameSocket.onMessage((msg: Record<string, unknown>) => {
-      if (msg.event !== "reaction") {
-        const currentQ = questionsRef.current[currentIndexRef.current];
-        console.log(`[SOCKET] event=${msg.event} currentQ=${currentQ?.id?.slice(0,8)} msgQ=${(msg.question_id as string)?.slice(0,8)} phase=${phase} correctAnswer=${correctAnswer} selectedAnswer=${selectedAnswer} allAnswered=${allAnswered}`);
-      }
-      
       if (msg.event === "reaction") {
         spawnReaction(msg.emoji as string);
         return;
@@ -263,7 +191,6 @@ export default function GamePage() {
         const myPlayerId = storePlayerId || localStorage.getItem(`player_id_${code}`);
         const amHost = localStorage.getItem(`host_${code}`) === "true";
 
-        // Ignore answer_result for a different question than current
         const currentQ = questionsRef.current[currentIndexRef.current];
         if (msgQuestionId && currentQ && msgQuestionId !== currentQ.id) return;
 
@@ -284,7 +211,6 @@ export default function GamePage() {
         const currentQ = questionsRef.current[currentIndexRef.current];
         if (msgQuestionId && currentQ && msgQuestionId !== currentQ.id) return;
         setAllAnswered(true);
-        // Only set correctAnswer for host — players get it from their own submission
         const amHost = localStorage.getItem(`host_${code}`) === "true";
         if (amHost) setCorrectAnswer(msg.correct_answer as string);
         (async () => {
@@ -342,31 +268,14 @@ export default function GamePage() {
       }
 
       if (msg.event === "player_left") {
-        const leftId = msg.player_id as string;
-        setPlayers((prev) => prev.filter((p) => p.id !== leftId));
-        const amHostNow = localStorage.getItem(`host_${code}`) === "true";
-        console.log("player_left, amHostNow:", amHostNow);
-        if (amHostNow) {
-          setTimeout(async () => {
-            try {
-              const playersRes = await api.get(`/games/${code}/players`);
-              const activePlayers = playersRes.data;
-              if (activePlayers.length === 0) return;
-              const gameRes = await api.get(`/games/${code}`);
-              const gameData = gameRes.data;
-              const qRes = await api.get(`/questions/${gameData.game_id}`);
-              const qs = qRes.data;
-              const currentQ = qs[gameData.current_question_index];
-              if (!currentQ) return;
-              const answersRes = await api.get(`/games/${code}/question-answers/${currentQ.id}`);
-              console.log("answers:", answersRes.data.count, "players:", activePlayers.length);
-              if (answersRes.data.count >= activePlayers.length) {
-                setAllAnswered(true);
-                setCorrectAnswer(currentQ.correct_answer);
-              }
-            } catch (e) { console.log("error:", e); }
-          }, 1500);
-        }
+        // Player refreshed — void answer recorded on backend, they will rejoin
+        // Just refresh player list to reflect current scores
+        (async () => {
+          try {
+            const pr = await api.get(`/games/${code}/players`);
+            setPlayers(pr.data);
+          } catch {}
+        })();
       }
 
       if (msg.event === "game_reset") {
@@ -407,14 +316,6 @@ export default function GamePage() {
       if (msg.event === "socket_reconnected") {
         (async () => {
           try {
-            const myPlayerId = storePlayerId || localStorage.getItem(`player_id_${code}`);
-            const amHost = localStorage.getItem(`host_${code}`) === "true";
-
-            // Always clear grace window on any reconnect — covers tab switch, screen lock, refresh
-            if (!amHost && myPlayerId) {
-              try { await api.get(`/games/${code}/resume/${myPlayerId}`); } catch {}
-            }
-
             const gameRes = await api.get(`/games/${code}`);
             const gameData = gameRes.data;
             if (gameData.status === "finished") {
@@ -449,7 +350,7 @@ export default function GamePage() {
   useEffect(() => {
     if (phase !== "question") return;
     if (timeLeft <= 0) {
-      if (!selectedAnswer && currentQuestion && !isHost) handleTimeout();
+      if (!selectedAnswer && currentQuestion && !isHost && !allAnswered) handleTimeout();
       if (isHost) setAllAnswered(true);
       return;
     }
@@ -497,7 +398,6 @@ export default function GamePage() {
       e.preventDefault();
       e.returnValue = "Are you sure you want to leave? You will be removed from the game.";
       if (!isHost && playerId) {
-        localStorage.setItem(`last_hide_${code}`, Date.now().toString());
         navigator.sendBeacon(
           `${process.env.NEXT_PUBLIC_API_URL}/games/${code}/leave`,
           JSON.stringify({ player_id: playerId })
@@ -507,7 +407,6 @@ export default function GamePage() {
     };
     const handlePageHide = () => {
       if (!isHost && playerId) {
-        localStorage.setItem(`last_hide_${code}`, Date.now().toString());
         navigator.sendBeacon(
           `${process.env.NEXT_PUBLIC_API_URL}/games/${code}/leave`,
           JSON.stringify({ player_id: playerId })
@@ -549,7 +448,6 @@ export default function GamePage() {
         player_id: playerId, question_id: currentQuestion.id,
         answer: answerToSubmit, time_taken_ms: timeTaken,
       });
-      // Only show result if still on the same question
       if (questionsRef.current[currentIndexRef.current]?.id === questionId) {
         showResult(res.data.correct, res.data.correct_answer ?? "", res.data.score);
       }
@@ -621,24 +519,6 @@ export default function GamePage() {
       </svg>
       <p style={{ fontFamily: "'Syne', sans-serif", fontWeight: 700, fontSize: "16px" }}>New round loading...</p>
       <p style={{ color: C.muted, fontSize: "13px" }}>AI is generating fresh questions</p>
-    </main>
-  );
-
-  if (kicked) return (
-    <main style={{ minHeight: "100vh", background: C.bg, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: "24px", fontFamily: "'DM Sans', sans-serif" }}>
-      <div style={{ textAlign: "center", maxWidth: "400px" }}>
-        <div style={{ fontSize: "56px", marginBottom: "16px" }}>😬</div>
-        <h1 style={{ fontFamily: "'Syne', sans-serif", fontSize: "28px", fontWeight: 800, marginBottom: "8px" }}>You left the game</h1>
-        <p style={{ color: C.muted, fontSize: "15px", marginBottom: "32px", lineHeight: 1.5 }}>
-          You refreshed the page during an active game and were removed. The game continues without you.
-        </p>
-        <a href="/" style={{
-          display: "inline-block", padding: "14px 32px",
-          background: C.accent, color: "#0a0a0f",
-          borderRadius: "12px", textDecoration: "none",
-          fontFamily: "'Syne', sans-serif", fontWeight: 700, fontSize: "15px",
-        }}>Go Home</a>
-      </div>
     </main>
   );
 
