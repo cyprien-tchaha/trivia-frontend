@@ -405,9 +405,16 @@ export default function GamePage() {
       }
 
       if (msg.event === "socket_reconnected") {
-        // Re-sync game state from server after reconnect
         (async () => {
           try {
+            const myPlayerId = storePlayerId || localStorage.getItem(`player_id_${code}`);
+            const amHost = localStorage.getItem(`host_${code}`) === "true";
+
+            // Always clear grace window on any reconnect — covers tab switch, screen lock, refresh
+            if (!amHost && myPlayerId) {
+              try { await api.get(`/games/${code}/resume/${myPlayerId}`); } catch {}
+            }
+
             const gameRes = await api.get(`/games/${code}`);
             const gameData = gameRes.data;
             if (gameData.status === "finished") {
@@ -418,7 +425,6 @@ export default function GamePage() {
             }
             const si = gameData.current_question_index;
             if (si !== currentIndexRef.current) {
-              // Game moved on while we were disconnected
               setCurrentIndex(si);
               currentIndexRef.current = si;
               setSelectedAnswer(null);
