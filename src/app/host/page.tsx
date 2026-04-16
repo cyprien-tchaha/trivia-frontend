@@ -62,7 +62,8 @@ function HostPageInner() {
       const data = res.data;
       setGameCode(data.code);
       setGame(data); setHost(true); setPlayer("host", hostName);
-      localStorage.setItem(`host_${data.code}`, "true");
+      localStorage.removeItem(`host_${data.code}`);
+      sessionStorage.setItem(`host_${data.code}`, "true");
       api.post(`/questions/${data.game_id}/generate`).catch(console.error);
       const poll = async () => {
         let attempts = 0;

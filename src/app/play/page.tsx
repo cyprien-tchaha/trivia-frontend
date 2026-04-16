@@ -91,8 +91,11 @@ export default function PlayPage() {
       setPlayerId(player_id);
       setPlayer(player_id, playerName);
       localStorage.removeItem(`host_${gameCode.toUpperCase()}`);
-      localStorage.setItem(`player_id_${gameCode.toUpperCase()}`, player_id);
-      localStorage.setItem(`player_name_${gameCode.toUpperCase()}`, playerName);
+      localStorage.removeItem(`player_id_${gameCode.toUpperCase()}`);
+      localStorage.removeItem(`player_name_${gameCode.toUpperCase()}`);
+      sessionStorage.removeItem(`host_${gameCode.toUpperCase()}`);
+      sessionStorage.setItem(`player_id_${gameCode.toUpperCase()}`, player_id);
+      sessionStorage.setItem(`player_name_${gameCode.toUpperCase()}`, playerName);
       setGame(game);
       setGameInfo({ category: game.category, difficulty: game.difficulty, host_name: game.host_name, topics: game.topics || "" });
       const playersRes = await api.get(`/games/${gameCode.toUpperCase()}/players`);

@@ -56,8 +56,22 @@ export default function GamePage() {
   const params = useParams();
   const code = (params.code as string).toUpperCase();
   const { playerId: storePlayerId, isHost: storeIsHost } = useGameStore();
-  const storedPlayerId = typeof window !== "undefined" ? localStorage.getItem(`player_id_${code}`) : null;
-  const storedIsHost = typeof window !== "undefined" && localStorage.getItem(`host_${code}`) === "true";
+  // Read from sessionStorage (tab-scoped) first. localStorage fallback only
+  // kicks in if a player joined on a prior deploy and hasn't rejoined since.
+  // localStorage is not safe when multiple players share a browser (e.g. host
+  // testing) because every join overwrites the single key, making every tab
+  // resolve to the *last* joiner's ID after refresh. That collision is what
+  // made refreshed tabs flip to "result" on any other player's answer_result.
+  const storedPlayerId =
+    typeof window !== "undefined"
+      ? sessionStorage.getItem(`player_id_${code}`) ||
+        localStorage.getItem(`player_id_${code}`)
+      : null;
+  const storedIsHost =
+    typeof window !== "undefined" &&
+    (sessionStorage.getItem(`host_${code}`) === "true" ||
+      (localStorage.getItem(`host_${code}`) === "true" &&
+        !sessionStorage.getItem(`player_id_${code}`)));
   const isHost = storeIsHost || (storedIsHost && !storedPlayerId);
   const playerId = storePlayerId || storedPlayerId;
 
@@ -237,16 +251,14 @@ export default function GamePage() {
         const ca = msg.correct_answer as string;
         const msgPlayerId = msg.player_id as string;
         const msgQuestionId = msg.question_id as string;
-        const myPlayerId = storePlayerId || localStorage.getItem(`player_id_${code}`);
-        const amHost = localStorage.getItem(`host_${code}`) === "true";
 
         const currentQ = questionsRef.current[currentIndexRef.current];
         if (msgQuestionId && currentQ && msgQuestionId !== currentQ.id) return;
 
-        if (amHost) {
+        if (isHost) {
           if (ca) setCorrectAnswer(ca);
           setAnswerSubmitted(true);
-        } else if (msgPlayerId === myPlayerId) {
+        } else if (msgPlayerId === playerId) {
           setScore(msg.score as number);
           setPhase((prev) => {
             if (prev !== "result") return "result";
@@ -260,8 +272,7 @@ export default function GamePage() {
         const currentQ = questionsRef.current[currentIndexRef.current];
         if (msgQuestionId && currentQ && msgQuestionId !== currentQ.id) return;
         setAllAnswered(true);
-        const amHost = localStorage.getItem(`host_${code}`) === "true";
-        if (amHost) setCorrectAnswer(msg.correct_answer as string);
+        if (isHost) setCorrectAnswer(msg.correct_answer as string);
         (async () => {
           try {
             const pr = await api.get(`/games/${code}/players`);
@@ -390,12 +401,10 @@ export default function GamePage() {
             // current question (e.g. WS bounced on result screen), restore
             // result phase. Guarded so a next_question that arrives during
             // the /resume await doesn't get clobbered.
-            const amHost = localStorage.getItem(`host_${code}`) === "true";
-            const myPid = storePlayerId || localStorage.getItem(`player_id_${code}`);
-            if (!amHost && myPid) {
+            if (!isHost && playerId) {
               const idxAtCheck = currentIndexRef.current;
               try {
-                const r = await api.get(`/games/${code}/resume/${myPid}`);
+                const r = await api.get(`/games/${code}/resume/${playerId}`);
                 const q = questionsRef.current[idxAtCheck];
                 console.log(
                   `[RESUME-RECON ${new Date().toISOString().slice(11, 23)}] idxAtCheck=${idxAtCheck} ref=${currentIndexRef.current} already=${r.data.already_answered} server_qid=${r.data.question_id} local_qid=${q?.id} server_idx=${r.data.current_question_index}`

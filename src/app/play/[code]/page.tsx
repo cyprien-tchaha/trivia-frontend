@@ -95,8 +95,11 @@ export default function JoinWithCodePage() {
       setPlayerId(player_id);
       setPlayer(player_id, playerName);
       localStorage.removeItem(`host_${code}`);
-      localStorage.setItem(`player_id_${code}`, player_id);
-      localStorage.setItem(`player_name_${code}`, playerName);
+      localStorage.removeItem(`player_id_${code}`);
+      localStorage.removeItem(`player_name_${code}`);
+      sessionStorage.removeItem(`host_${code}`);
+      sessionStorage.setItem(`player_id_${code}`, player_id);
+      sessionStorage.setItem(`player_name_${code}`, playerName);
       setGame(game);
       setGameInfo({
         category: game.category, difficulty: game.difficulty,
