@@ -159,32 +159,37 @@ export default function GamePage() {
         setQuestions(qs);
         questionsRef.current = qs;
 
-        const idx = Number(gameData.current_question_index) || 0;
-        setCurrentIndex(idx);
-        currentIndexRef.current = idx;
-
         if (!isHost && (storePlayerId || localStorage.getItem(`player_id_${code}`))) {
           const myPlayerId = storePlayerId || localStorage.getItem(`player_id_${code}`);
-          const currentQ = qs[idx];
-          if (currentQ && myPlayerId) {
-            try {
-              const answerCheck = await api.get(`/games/${code}/player-answer/${myPlayerId}/${currentQ.id}`);
-              // Only apply if game hasn't advanced while we were checking
-              if (currentIndexRef.current === idx) {
-                if (answerCheck.data.answered && answerCheck.data.answer !== "__left__") {
-                  setCorrectAnswer(answerCheck.data.correct_answer || null);
-                  setSelectedAnswer(answerCheck.data.answer || null);
-                  setPhase("result");
-                } else {
-                  setPhase("question");
-                }
+          try {
+            // Re-fetch fresh game state — host may have advanced while we were loading
+            const freshGameRes = await api.get(`/games/${code}`);
+            const freshIdx = Number(freshGameRes.data.current_question_index) || 0;
+            setCurrentIndex(freshIdx);
+            currentIndexRef.current = freshIdx;
+            const freshQ = qs[freshIdx];
+            if (freshQ && myPlayerId) {
+              const answerCheck = await api.get(`/games/${code}/player-answer/${myPlayerId}/${freshQ.id}`);
+              if (answerCheck.data.answered && answerCheck.data.answer !== "__left__") {
+                setCorrectAnswer(answerCheck.data.correct_answer || null);
+                setSelectedAnswer(answerCheck.data.answer || null);
+                setPhase("result");
+              } else {
+                setPhase("question");
               }
-            } catch {
-              if (currentIndexRef.current === idx) setPhase("question");
+            } else {
+              setPhase("question");
             }
-          } else {
+          } catch {
+            const idx = Number(gameData.current_question_index) || 0;
+            setCurrentIndex(idx);
+            currentIndexRef.current = idx;
             setPhase("question");
           }
+        } else {
+          const idx = Number(gameData.current_question_index) || 0;
+          setCurrentIndex(idx);
+          currentIndexRef.current = idx;
         }
 
       } catch (e) {
