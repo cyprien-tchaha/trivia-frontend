@@ -160,7 +160,27 @@ export default function GamePage() {
         const idx = Number(gameData.current_question_index) || 0;
         setCurrentIndex(idx);
         currentIndexRef.current = idx;
-        if (!isHost) setPhase("question");
+
+        if (!isHost && (storePlayerId || localStorage.getItem(`player_id_${code}`))) {
+          const myPlayerId = storePlayerId || localStorage.getItem(`player_id_${code}`);
+          const currentQ = qs[idx];
+          if (currentQ && myPlayerId) {
+            try {
+              const answerCheck = await api.get(`/games/${code}/player-answer/${myPlayerId}/${currentQ.id}`);
+              if (answerCheck.data.answered && answerCheck.data.answer !== "__left__") {
+                setCorrectAnswer(answerCheck.data.correct_answer || null);
+                setSelectedAnswer(answerCheck.data.answer || null);
+                setPhase("result");
+              } else {
+                setPhase("question");
+              }
+            } catch {
+              setPhase("question");
+            }
+          } else {
+            setPhase("question");
+          }
+        }
 
       } catch (e) {
         console.error("Failed to load game", e);
