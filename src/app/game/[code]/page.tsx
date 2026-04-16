@@ -233,8 +233,13 @@ export default function GamePage() {
     }
 
     loadGame();
+    // Capture the timeout so cleanup can cancel it. Without this, a rapid
+    // mount/unmount (Strict Mode, route transitions, fast refresh) leaves a
+    // pending connect() that fires after cleanup and creates a second
+    // WebSocket.
+    let connectTimeout: ReturnType<typeof setTimeout> | null = null;
     if (!gameSocket.isConnected()) {
-      setTimeout(() => gameSocket.connect(code), 100);
+      connectTimeout = setTimeout(() => gameSocket.connect(code), 100);
     }
 
     const unsub = gameSocket.onMessage((msg: Record<string, unknown>) => {
@@ -429,7 +434,10 @@ export default function GamePage() {
       }
 
     });
-    return unsub;
+    return () => {
+      if (connectTimeout !== null) clearTimeout(connectTimeout);
+      unsub();
+    };
   }, [code, showResult]);
 
   useEffect(() => {
@@ -480,17 +488,20 @@ export default function GamePage() {
 
   useEffect(() => {
     if (phase === "finished") return;
+    // beforeunload: show a confirmation dialog only. The beacon is fired from
+    // pagehide alone to avoid double-firing /leave. Note most modern browsers
+    // show their own generic "Changes you made may not be saved" message and
+    // ignore the custom text in returnValue, but setting it is still required
+    // to trigger the prompt at all.
     const handleBeforeUnload = (e: BeforeUnloadEvent) => {
-      e.preventDefault();
-      e.returnValue = "Are you sure you want to leave? You will be removed from the game.";
       if (!isHost && playerId) {
-        navigator.sendBeacon(
-          `${process.env.NEXT_PUBLIC_API_URL}/games/${code}/leave`,
-          JSON.stringify({ player_id: playerId })
-        );
+        e.preventDefault();
+        e.returnValue = "Are you sure you want to leave? You will be removed from the game.";
+        return e.returnValue;
       }
-      return e.returnValue;
     };
+    // pagehide: fire the /leave beacon. pagehide is more reliable than
+    // beforeunload on mobile Safari and fires in more scenarios (bfcache, etc).
     const handlePageHide = () => {
       if (!isHost && playerId) {
         navigator.sendBeacon(

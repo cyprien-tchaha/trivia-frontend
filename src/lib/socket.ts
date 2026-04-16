@@ -29,7 +29,14 @@ class GameSocket {
   }
 
   private _connect() {
+    // Guard against both OPEN (already connected) AND CONNECTING (handshake
+    // in flight). The original `=== OPEN` check missed the CONNECTING case,
+    // which meant a rapid second connect() call created a duplicate WebSocket
+    // — both handshakes would complete, both onopen handlers would fire, and
+    // every server broadcast would arrive twice at the client. The dev-mode
+    // double-mount from React Strict Mode reliably triggered this.
     if (this.ws?.readyState === WebSocket.OPEN) return;
+    if (this.ws?.readyState === WebSocket.CONNECTING) return;
     const url = `${process.env.NEXT_PUBLIC_WS_URL || "ws://localhost:8000"}/api/games/${this.gameCode}/ws`;
     this.ws = new WebSocket(url);
 
@@ -83,6 +90,15 @@ class GameSocket {
   }
 
   onMessage(handler: MessageHandler) {
+    // Defense-in-depth: if the same handler reference is already registered,
+    // don't add it again. Strict-Mode double-mounts or mis-managed useEffect
+    // cleanup can otherwise accumulate identical handlers and cause events
+    // to fire twice per message.
+    if (this.handlers.includes(handler)) {
+      return () => {
+        this.handlers = this.handlers.filter((h) => h !== handler);
+      };
+    }
     this.handlers.push(handler);
     return () => {
       this.handlers = this.handlers.filter((h) => h !== handler);
