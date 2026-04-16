@@ -147,6 +147,7 @@ export default function GamePage() {
 
         const playersRes = await api.get(`/games/${code}/players`);
         setPlayers(playersRes.data);
+        totalPlayersRef.current = playersRes.data.length;
 
         let qs: Question[] = [];
         let attempts = 0;
@@ -159,39 +160,10 @@ export default function GamePage() {
         setQuestions(qs);
         questionsRef.current = qs;
 
-        if (!isHost && (storePlayerId || localStorage.getItem(`player_id_${code}`))) {
-          const myPlayerId = storePlayerId || localStorage.getItem(`player_id_${code}`);
-          try {
-            const freshGameRes = await api.get(`/games/${code}`);
-            const freshIdx = Number(freshGameRes.data.current_question_index) || 0;
-            setCurrentIndex(freshIdx);
-            currentIndexRef.current = freshIdx;
-            const freshQ = qs[freshIdx];
-            if (freshQ && myPlayerId) {
-              const answerCheck = await api.get(`/games/${code}/player-answer/${myPlayerId}/${freshQ.id}`);
-              // If next_question fired while we were awaiting, don't override it
-              if (currentIndexRef.current !== freshIdx) return;
-              if (answerCheck.data.answered && answerCheck.data.answer !== "__left__") {
-                setCorrectAnswer(answerCheck.data.correct_answer || null);
-                setSelectedAnswer(answerCheck.data.answer || null);
-                setPhase("result");
-              } else {
-                setPhase("question");
-              }
-            } else {
-              setPhase("question");
-            }
-          } catch {
-            const idx = Number(gameData.current_question_index) || 0;
-            setCurrentIndex(idx);
-            currentIndexRef.current = idx;
-            setPhase("question");
-          }
-        } else {
-          const idx = Number(gameData.current_question_index) || 0;
-          setCurrentIndex(idx);
-          currentIndexRef.current = idx;
-        }
+        const idx = Number(gameData.current_question_index) || 0;
+        setCurrentIndex(idx);
+        currentIndexRef.current = idx;
+        if (!isHost) setPhase("question");
 
       } catch (e) {
         console.error("Failed to load game", e);
@@ -299,8 +271,6 @@ export default function GamePage() {
       }
 
       if (msg.event === "player_left") {
-        // Player refreshed — void answer recorded on backend, they will rejoin
-        // Just refresh player list to reflect current scores
         (async () => {
           try {
             const pr = await api.get(`/games/${code}/players`);
