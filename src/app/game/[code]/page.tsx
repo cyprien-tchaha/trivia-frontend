@@ -161,9 +161,39 @@ export default function GamePage() {
         questionsRef.current = qs;
 
         const idx = Number(gameData.current_question_index) || 0;
-        setCurrentIndex(idx);
-        currentIndexRef.current = idx;
-        if (!isHost) setPhase("question");
+
+        // Monotonic guard: current_question_index only ever moves forward during
+        // an active game. If a next_question event advanced us past `idx` while
+        // we were awaiting network calls, the socket handler is already
+        // authoritative — dropping the stale write here prevents landing on an
+        // old question after refresh.
+        if (idx >= currentIndexRef.current) {
+          setCurrentIndex(idx);
+          currentIndexRef.current = idx;
+          if (!isHost) setPhase("question");
+
+          // Race-safe resume: if we already answered the question we just
+          // landed on, restore the result screen instead of showing it as
+          // unanswered. We capture `idx` in a local so the guard below is
+          // unambiguous: only apply if we haven't moved past the question we
+          // were checking (another next_question could have arrived during
+          // the /resume await).
+          if (!isHost && playerId) {
+            try {
+              const r = await api.get(`/games/${code}/resume/${playerId}`);
+              if (
+                r.data.already_answered &&
+                currentIndexRef.current === idx &&
+                r.data.question_id === qs[idx]?.id
+              ) {
+                setSelectedAnswer(r.data.answer || "__timeout__");
+                setCorrectAnswer(r.data.correct_answer || "");
+                setScore(r.data.player_score ?? 0);
+                setPhase("result");
+              }
+            } catch {}
+          }
+        }
 
       } catch (e) {
         console.error("Failed to load game", e);
@@ -326,7 +356,9 @@ export default function GamePage() {
               return;
             }
             const si = gameData.current_question_index;
-            if (si !== currentIndexRef.current) {
+            // Monotonic: only advance forward. `!==` would accept a stale
+            // smaller si after a next_question event already landed.
+            if (si > currentIndexRef.current) {
               setCurrentIndex(si);
               currentIndexRef.current = si;
               setSelectedAnswer(null);
@@ -337,6 +369,29 @@ export default function GamePage() {
               setAllAnswered(false);
               setCommentary("");
               commentaryFetchedRef.current = false;
+            }
+            // Regardless of index change, if the player already answered the
+            // current question (e.g. WS bounced on result screen), restore
+            // result phase. Guarded so a next_question that arrives during
+            // the /resume await doesn't get clobbered.
+            const amHost = localStorage.getItem(`host_${code}`) === "true";
+            const myPid = storePlayerId || localStorage.getItem(`player_id_${code}`);
+            if (!amHost && myPid) {
+              const idxAtCheck = currentIndexRef.current;
+              try {
+                const r = await api.get(`/games/${code}/resume/${myPid}`);
+                const q = questionsRef.current[idxAtCheck];
+                if (
+                  r.data.already_answered &&
+                  currentIndexRef.current === idxAtCheck &&
+                  q && r.data.question_id === q.id
+                ) {
+                  setSelectedAnswer(r.data.answer || "__timeout__");
+                  setCorrectAnswer(r.data.correct_answer || "");
+                  setScore(r.data.player_score ?? 0);
+                  setPhase("result");
+                }
+              } catch {}
             }
             const pr = await api.get(`/games/${code}/players`);
             setPlayers(pr.data);
