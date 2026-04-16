@@ -87,6 +87,7 @@ export default function GamePage() {
   const questionsRef = useRef<Question[]>([]);
   const currentIndexRef = useRef(0);
   const commentaryFetchedRef = useRef(false);
+  const totalPlayersRef = useRef(0);
 
   const showResult = useCallback((correct: boolean, correct_answer: string, newScore?: number) => {
     setCorrectAnswer(correct_answer);
@@ -138,6 +139,7 @@ export default function GamePage() {
         if (gameData.status === "finished") {
           const playersRes = await api.get(`/games/${code}/players`);
           setPlayers(playersRes.data);
+          totalPlayersRef.current = playersRes.data.length;
           setPhase("finished");
           setLoading(false);
           return;
@@ -384,7 +386,8 @@ export default function GamePage() {
           const activePlayers = playersRes.data;
           if (activePlayers.length === 0) return;
           const answersRes = await api.get(`/games/${code}/question-answers/${currentQuestion.id}`);
-          if (answersRes.data.count >= activePlayers.length) {
+          const expectedCount = totalPlayersRef.current || activePlayers.length;
+          if (answersRes.data.count >= expectedCount) {
             setAllAnswered(true);
           }
         } catch {}
