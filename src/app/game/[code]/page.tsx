@@ -162,7 +162,6 @@ export default function GamePage() {
         if (!isHost && (storePlayerId || localStorage.getItem(`player_id_${code}`))) {
           const myPlayerId = storePlayerId || localStorage.getItem(`player_id_${code}`);
           try {
-            // Re-fetch fresh game state — host may have advanced while we were loading
             const freshGameRes = await api.get(`/games/${code}`);
             const freshIdx = Number(freshGameRes.data.current_question_index) || 0;
             setCurrentIndex(freshIdx);
@@ -170,6 +169,8 @@ export default function GamePage() {
             const freshQ = qs[freshIdx];
             if (freshQ && myPlayerId) {
               const answerCheck = await api.get(`/games/${code}/player-answer/${myPlayerId}/${freshQ.id}`);
+              // If next_question fired while we were awaiting, don't override it
+              if (currentIndexRef.current !== freshIdx) return;
               if (answerCheck.data.answered && answerCheck.data.answer !== "__left__") {
                 setCorrectAnswer(answerCheck.data.correct_answer || null);
                 setSelectedAnswer(answerCheck.data.answer || null);
