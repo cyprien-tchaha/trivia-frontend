@@ -89,6 +89,14 @@ export default function GamePage() {
   const commentaryFetchedRef = useRef(false);
   const totalPlayersRef = useRef(0);
 
+  // DIAGNOSTIC: log every phase/index/selectedAnswer/correctAnswer change with a timestamp.
+  // Remove after the refresh-stuck-on-result bug is resolved.
+  useEffect(() => {
+    console.log(
+      `[DIAG ${new Date().toISOString().slice(11, 23)}] phase=${phase} idx=${currentIndex} ref=${currentIndexRef.current} sel=${selectedAnswer} correct=${correctAnswer} score=${score}`
+    );
+  }, [phase, currentIndex, selectedAnswer, correctAnswer, score]);
+
   const showResult = useCallback((correct: boolean, correct_answer: string, newScore?: number) => {
     setCorrectAnswer(correct_answer);
     if (newScore !== undefined) setScore(newScore);
@@ -181,11 +189,15 @@ export default function GamePage() {
           if (!isHost && playerId) {
             try {
               const r = await api.get(`/games/${code}/resume/${playerId}`);
+              console.log(
+                `[RESUME-LOAD ${new Date().toISOString().slice(11, 23)}] idx=${idx} ref=${currentIndexRef.current} already=${r.data.already_answered} server_qid=${r.data.question_id} local_qid=${qs[idx]?.id} server_idx=${r.data.current_question_index}`
+              );
               if (
                 r.data.already_answered &&
                 currentIndexRef.current === idx &&
                 r.data.question_id === qs[idx]?.id
               ) {
+                console.log(`[RESUME-LOAD] APPLYING result for idx=${idx}`);
                 setSelectedAnswer(r.data.answer || "__timeout__");
                 setCorrectAnswer(r.data.correct_answer || "");
                 setScore(r.data.player_score ?? 0);
@@ -212,6 +224,10 @@ export default function GamePage() {
     }
 
     const unsub = gameSocket.onMessage((msg: Record<string, unknown>) => {
+      console.log(
+        `[WS ${new Date().toISOString().slice(11, 23)}] event=${msg.event} ref=${currentIndexRef.current}`,
+        msg
+      );
       if (msg.event === "reaction") {
         spawnReaction(msg.emoji as string);
         return;
@@ -381,11 +397,15 @@ export default function GamePage() {
               try {
                 const r = await api.get(`/games/${code}/resume/${myPid}`);
                 const q = questionsRef.current[idxAtCheck];
+                console.log(
+                  `[RESUME-RECON ${new Date().toISOString().slice(11, 23)}] idxAtCheck=${idxAtCheck} ref=${currentIndexRef.current} already=${r.data.already_answered} server_qid=${r.data.question_id} local_qid=${q?.id} server_idx=${r.data.current_question_index}`
+                );
                 if (
                   r.data.already_answered &&
                   currentIndexRef.current === idxAtCheck &&
                   q && r.data.question_id === q.id
                 ) {
+                  console.log(`[RESUME-RECON] APPLYING result for idx=${idxAtCheck}`);
                   setSelectedAnswer(r.data.answer || "__timeout__");
                   setCorrectAnswer(r.data.correct_answer || "");
                   setScore(r.data.player_score ?? 0);
