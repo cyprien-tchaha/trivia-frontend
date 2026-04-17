@@ -80,6 +80,90 @@ export default function JoinWithCodePage() {
 
   useEffect(() => { return () => gameSocket.disconnect(); }, []);
 
+  // Rehydrate from sessionStorage on mount. If the player already joined this
+  // game in this tab and then refreshed, skip the "enter your name" screen and
+  // drop them straight back into the lobby. Without this, refresh bounces them
+  // to the name form even though their identity is preserved — confusing UX
+  // reported by beta tester. Handled edge cases: game started (→ go to game
+  // page), game finished (→ go to game page which renders finished state),
+  // host removed them (→ clear session, show name screen silently), game not
+  // found or network error (→ fall through to name screen, let them rejoin
+  // manually).
+  useEffect(() => {
+    const storedId = sessionStorage.getItem(`player_id_${code}`);
+    const storedName = sessionStorage.getItem(`player_name_${code}`);
+    if (!storedId || !storedName) return; // no prior session; normal flow
+
+    let cancelled = false;
+    (async () => {
+      try {
+        const gameRes = await api.get(`/games/${code}`);
+        if (cancelled) return;
+        const game = gameRes.data;
+
+        // Game moved past the lobby → route to game page, which has its own
+        // rehydration / finished-state handling.
+        if (game.status !== "lobby") {
+          router.replace(`/game/${code}`);
+          return;
+        }
+
+        // Confirm the player is still in this game server-side. If not (host
+        // removed them, or sessionStorage is stale from a different game that
+        // reused the code), silently fall back to the name screen.
+        const playersRes = await api.get(`/games/${code}/players`);
+        if (cancelled) return;
+        const stillInGame = playersRes.data.some((p: Player) => p.id === storedId);
+        if (!stillInGame) {
+          sessionStorage.removeItem(`player_id_${code}`);
+          sessionStorage.removeItem(`player_name_${code}`);
+          return;
+        }
+
+        // Rehydrate: populate the same state joinGame would have populated, and
+        // skip straight to the lobby step.
+        setPlayerName(storedName);
+        setPlayerId(storedId);
+        setPlayer(storedId, storedName);
+        setGame(game);
+        setGameInfo({
+          category: game.category, difficulty: game.difficulty,
+          host_name: game.host_name, topics: game.topics || "",
+        });
+        setLocalPlayers(playersRes.data);
+        setPlayers(playersRes.data);
+
+        // Attach socket handlers before marking lobby step active, so a
+        // game_started event that lands during the transition isn't missed.
+        gameSocket.connect(code);
+        gameSocket.onMessage((msg: Record<string, unknown>) => {
+          if (msg.event === "player_joined") {
+            const np = msg.player as Player;
+            setLocalPlayers((prev) => prev.find((p) => p.id === np.id) ? prev : [...prev, np]);
+          }
+          if (msg.event === "player_removed") {
+            const removedId = msg.player_id as string;
+            const myId = sessionStorage.getItem(`player_id_${code}`);
+            if (removedId && myId && removedId === myId) {
+              sessionStorage.removeItem(`player_id_${code}`);
+              sessionStorage.removeItem(`player_name_${code}`);
+              router.replace("/?error=removed_by_host");
+              return;
+            }
+            setLocalPlayers((prev) => prev.filter((p) => p.id !== removedId));
+          }
+          if (msg.event === "game_started") router.push(`/game/${code}`);
+        });
+        setStep("lobby");
+      } catch {
+        // Game not found (404), network blip, or server error. Fall through
+        // to the name screen; the normal join flow will surface a better
+        // error message if the user tries to rejoin.
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [code, router, setGame, setPlayer, setPlayers]);
+
   async function joinGame() {
     if (!playerName.trim()) { setError("Please enter your name"); return; }
     setLoading(true); setError("");
