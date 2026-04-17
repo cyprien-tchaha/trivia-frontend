@@ -4,14 +4,17 @@ import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 
 export default function Home() {
-  const [loadError, setLoadError] = useState(false);
+  const [loadError, setLoadError] = useState<string>("");
   const router = useRouter();
 
   useEffect(() => {
     if (typeof window !== "undefined") {
       const params = new URLSearchParams(window.location.search);
-      if (params.get("error") === "game_load_failed") {
-        setLoadError(true);
+      const err = params.get("error");
+      if (err === "game_load_failed") {
+        setLoadError("The game couldn't load. It may have ended or the link expired.");
+      } else if (err === "removed_by_host") {
+        setLoadError("The host removed you from the game.");
       }
     }
 
@@ -48,7 +51,7 @@ export default function Home() {
           color: "#ff4d6d", fontSize: "14px", textAlign: "center",
           fontFamily: "'DM Sans', sans-serif",
         }}>
-          The game couldn't load. It may have ended or the link expired.
+          {loadError}
         </div>
       )}
 

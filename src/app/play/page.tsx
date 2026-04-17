@@ -107,6 +107,18 @@ export default function PlayPage() {
           const np = msg.player as Player;
           setLocalPlayers((prev) => prev.find((p) => p.id === np.id) ? prev : [...prev, np]);
         }
+        if (msg.event === "player_removed") {
+          const removedId = msg.player_id as string;
+          const code = gameCode.toUpperCase();
+          const myId = sessionStorage.getItem(`player_id_${code}`);
+          if (removedId && myId && removedId === myId) {
+            sessionStorage.removeItem(`player_id_${code}`);
+            sessionStorage.removeItem(`player_name_${code}`);
+            router.replace("/?error=removed_by_host");
+            return;
+          }
+          setLocalPlayers((prev) => prev.filter((p) => p.id !== removedId));
+        }
         if (msg.event === "game_started") router.push(`/game/${gameCode.toUpperCase()}`);
       });
       setStep("lobby");

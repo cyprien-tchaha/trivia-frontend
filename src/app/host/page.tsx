@@ -20,7 +20,7 @@ const difficultyColor = ["", "#00e5b0", "#6ee7b7", "#f5a623", "#f97316", "#ff4d6
 function HostPageInner() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const { setGame, setHost, setPlayer, addPlayer, players } = useGameStore();
+  const { setGame, setHost, setPlayer, addPlayer, setPlayers, players } = useGameStore();
 
   const [step, setStep] = useState<"setup" | "lobby">("setup");
   const [hostName, setHostName] = useState("");
@@ -80,6 +80,10 @@ function HostPageInner() {
       gameSocket.connect(data.code);
       gameSocket.onMessage((msg: Record<string, unknown>) => {
         if (msg.event === "player_joined") addPlayer(msg.player as Player);
+        if (msg.event === "player_removed") {
+          const removedId = msg.player_id as string;
+          setPlayers(useGameStore.getState().players.filter((p) => p.id !== removedId));
+        }
         if (msg.event === "game_started") router.push(`/game/${data.code}`);
       });
       setStep("lobby");
@@ -95,6 +99,16 @@ function HostPageInner() {
   async function startGame() {
     try { await api.post(`/games/${gameCode}/start`); }
     catch { setError("Failed to start game"); }
+  }
+
+  async function removePlayer(playerId: string) {
+    try {
+      await api.post(`/games/${gameCode}/players/${playerId}/remove`);
+      // Optimistic: the player_removed broadcast will arrive and update the list,
+      // but we don't need to touch state here — the handler does it.
+    } catch {
+      setError("Couldn't remove that player. Try again.");
+    }
   }
 
   const inputStyle = {
@@ -302,7 +316,7 @@ function HostPageInner() {
             </div>
           ) : (
             <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
-              {players.map((p: Player, i) => (
+              {players.map((p: Player) => (
                 <div key={p.id} style={{
                   display: "flex", alignItems: "center", gap: "10px",
                   padding: "10px 12px", borderRadius: "10px",
@@ -316,7 +330,30 @@ function HostPageInner() {
                     border: "1px solid rgba(0,229,176,0.25)",
                   }}>{p.name[0].toUpperCase()}</div>
                   <span style={{ fontSize: "14px", flex: 1 }}>{p.name}</span>
-                  <span style={{ fontSize: "12px", color: C.muted }}>#{i + 1}</span>
+                  <button
+                    onClick={() => removePlayer(p.id)}
+                    aria-label={`Remove ${p.name}`}
+                    title={`Remove ${p.name}`}
+                    style={{
+                      width: "28px", height: "28px", borderRadius: "6px",
+                      display: "flex", alignItems: "center", justifyContent: "center",
+                      background: "transparent",
+                      border: `1px solid ${C.border}`,
+                      color: C.muted,
+                      fontSize: "14px", lineHeight: 1,
+                      cursor: "pointer",
+                      padding: 0,
+                      transition: "all 0.12s ease",
+                    }}
+                    onMouseEnter={(e) => {
+                      e.currentTarget.style.borderColor = "rgba(255,77,109,0.4)";
+                      e.currentTarget.style.color = C.danger;
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.borderColor = C.border;
+                      e.currentTarget.style.color = C.muted;
+                    }}
+                  >✕</button>
                 </div>
               ))}
             </div>
