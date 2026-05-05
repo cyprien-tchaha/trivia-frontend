@@ -210,7 +210,9 @@ function HostPageInner() {
                   ? prefillTopic.trim()
                     ? `Will use "${prefillTopic}" as the topic. Pick titles above to override.`
                     : "Leave blank for a mix of questions across the category."
-                  : `Questions will focus on ${selectedTitles.length === 1 ? "this title" : `these ${selectedTitles.length} titles`}.`}
+                  : selectedTitles.length === 3
+                    ? "Maximum reached. Remove a title to add a different one."
+                    : `Questions will focus on ${selectedTitles.length === 1 ? "this title" : `these ${selectedTitles.length} titles`}.`}
               </p>
             </div>
 

@@ -186,7 +186,7 @@ export default function TitleMultiSelect({
               fontFamily: "'DM Sans', sans-serif",
             }}
           >
-            {s.name}{s.year ? ` (${s.year})` : ""}
+            {s.name}
             <button
               type="button"
               onClick={(e) => { e.stopPropagation(); removeItem(s.id); }}
@@ -204,29 +204,28 @@ export default function TitleMultiSelect({
           </span>
         ))}
 
-        <input
-          ref={inputRef}
-          value={query}
-          onChange={(e) => { setQuery(e.target.value); setOpen(true); }}
-          onFocus={() => setOpen(true)}
-          onKeyDown={onKeyDown}
-          disabled={atLimit}
-          placeholder={
-            atLimit
-              ? `${maxSelected} of ${maxSelected} selected`
-              : (selected.length === 0
+        {!atLimit && (
+          <input
+            ref={inputRef}
+            value={query}
+            onChange={(e) => { setQuery(e.target.value); setOpen(true); }}
+            onFocus={() => setOpen(true)}
+            onKeyDown={onKeyDown}
+            placeholder={
+              selected.length === 0
                 ? (placeholder ?? "Start typing a title…")
-                : "Add another…")
-          }
-          aria-label="Search titles"
-          style={{
-            flex: "1 0 140px", minWidth: 0,
-            background: "transparent", border: "none", outline: "none",
-            color: C.text, fontSize: "14px",
-            fontFamily: "'DM Sans', sans-serif",
-            padding: "4px 2px",
-          }}
-        />
+                : "Add another…"
+            }
+            aria-label="Search titles"
+            style={{
+              flex: "1 0 140px", minWidth: 0,
+              background: "transparent", border: "none", outline: "none",
+              color: C.text, fontSize: "14px",
+              fontFamily: "'DM Sans', sans-serif",
+              padding: "4px 2px",
+            }}
+          />
+        )}
       </div>
 
       {/* Dropdown */}
