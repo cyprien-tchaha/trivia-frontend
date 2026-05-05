@@ -6,6 +6,7 @@ import api from "@/lib/api";
 import { gameSocket } from "@/lib/socket";
 import { useGameStore } from "@/store/gameStore";
 import { Player } from "@/types";
+import TitleMultiSelect, { SelectedTitle, TitleSearchCategory } from "@/components/TitleMultiSelect";
 
 const C = {
   bg: "#0a0a0f", surface: "#13131a", surface2: "#1c1c27",
@@ -24,20 +25,31 @@ function HostPageInner() {
 
   const [step, setStep] = useState<"setup" | "lobby">("setup");
   const [hostName, setHostName] = useState("");
-  const [category, setCategory] = useState<"anime" | "tv">("anime");
+  // "tv" was the legacy value; we now distinguish tv_shows and movies. The
+  // value sent to the backend in `category` stays as one of these strings —
+  // the backend doesn't care about the distinction beyond passing it to the
+  // AI prompt, but the frontend uses it to route the title-search query.
+  const [category, setCategory] = useState<TitleSearchCategory>("anime");
   const [difficulty, setDifficulty] = useState(1);
   const [questionCount, setQuestionCount] = useState(10);
-  const [topics, setTopics] = useState("");
+  // Selected titles from the multi-select combo box. These get serialized
+  // into the comma-separated `topics` string the backend already expects.
+  const [selectedTitles, setSelectedTitles] = useState<SelectedTitle[]>([]);
   const [gameCode, setGameCode] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [questionsReady, setQuestionsReady] = useState(false);
   const [copied, setCopied] = useState(false);
 
-  // Pre-fill topic from quick-start chip on home page
+  // Pre-fill topic from quick-start chip on home page. Treats the param as
+  // a free-text topic — same behavior as before, so existing landing-page
+  // shortcuts still work. We still serialize selectedTitles as the primary
+  // topics source on submit, but if the user lands here from a quick-start
+  // we add a placeholder entry that survives until they edit.
+  const [prefillTopic, setPrefillTopic] = useState("");
   useEffect(() => {
     const topicParam = searchParams.get("topic");
-    if (topicParam) setTopics(topicParam);
+    if (topicParam) setPrefillTopic(topicParam);
   }, [searchParams]);
 
   useEffect(() => { return () => gameSocket.disconnect(); }, []);
@@ -46,14 +58,23 @@ function HostPageInner() {
     if (!hostName.trim()) { setError("Please enter your name"); return; }
     setLoading(true); setError("");
     try {
-      let finalTopics = topics.trim();
-      if (finalTopics) {
-        const validation = await api.post("/questions/validate-topics", { topics: finalTopics });
+      // Title selections take precedence over the URL-prefilled free-text
+      // topic. If the host picked specific titles via the combo box, those
+      // are canonical and skip validate-topics entirely. If they only have
+      // a prefill (and didn't pick anything), fall through the legacy free
+      // text path so the existing AI validator can correct typos.
+      let finalTopics = "";
+      if (selectedTitles.length > 0) {
+        finalTopics = selectedTitles
+          .map((t) => (t.year ? `${t.name} (${t.year})` : t.name))
+          .join(", ");
+      } else if (prefillTopic.trim()) {
+        const validation = await api.post("/questions/validate-topics", { topics: prefillTopic.trim() });
         if (validation.data.unknown.length > 0) {
           setError(`Not found: ${validation.data.unknown.join(", ")}. Check the spelling.`);
           setLoading(false); return;
         }
-        if (validation.data.corrected) finalTopics = validation.data.corrected;
+        finalTopics = validation.data.corrected || prefillTopic.trim();
       }
       const res = await api.post("/games/create", {
         host_name: hostName, category, difficulty,
@@ -148,34 +169,50 @@ function HostPageInner() {
               <input value={hostName} onChange={(e) => setHostName(e.target.value)} onKeyDown={(e) => e.key === "Enter" && createGame()} placeholder="Enter your name" style={inputStyle} />
             </div>
 
-            {/* Topics */}
+            {/* Category — pick first, drives which titles you can search. */}
             <div>
-              <label style={{ display: "block", fontSize: "11px", fontWeight: 600, letterSpacing: "0.1em", textTransform: "uppercase", color: C.muted, marginBottom: "8px" }}>
-                Topic <span style={{ color: C.border, fontWeight: 400, textTransform: "none", letterSpacing: 0 }}>— optional</span>
-              </label>
-              <input value={topics} onChange={(e) => setTopics(e.target.value)} placeholder="e.g. One Piece, Breaking Bad, Marvel…" style={inputStyle} />
-              <p style={{ fontSize: "12px", color: C.muted, marginTop: "6px" }}>Leave blank to use the category selector</p>
+              <label style={{ display: "block", fontSize: "11px", fontWeight: 600, letterSpacing: "0.1em", textTransform: "uppercase", color: C.muted, marginBottom: "8px" }}>Category</label>
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: "8px" }}>
+                {(["anime", "tv_shows", "movies"] as const).map((cat) => (
+                  <button key={cat} onClick={() => setCategory(cat)} style={{
+                    padding: "12px", borderRadius: "10px", fontSize: "14px", fontWeight: 600,
+                    fontFamily: "'Syne', sans-serif", cursor: "pointer", transition: "all 0.15s",
+                    background: category === cat ? "rgba(0,229,176,0.1)" : C.surface2,
+                    border: `1.5px solid ${category === cat ? C.accent : C.border}`,
+                    color: category === cat ? C.accent : C.muted,
+                  }}>
+                    {cat === "anime" ? "🎌 Anime" : cat === "tv_shows" ? "📺 TV Shows" : "🎬 Movies"}
+                  </button>
+                ))}
+              </div>
             </div>
 
-            {/* Category */}
-            {!topics.trim() && (
-              <div>
-                <label style={{ display: "block", fontSize: "11px", fontWeight: 600, letterSpacing: "0.1em", textTransform: "uppercase", color: C.muted, marginBottom: "8px" }}>Category</label>
-                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "8px" }}>
-                  {(["anime", "tv"] as const).map((cat) => (
-                    <button key={cat} onClick={() => setCategory(cat)} style={{
-                      padding: "12px", borderRadius: "10px", fontSize: "14px", fontWeight: 600,
-                      fontFamily: "'Syne', sans-serif", cursor: "pointer", transition: "all 0.15s",
-                      background: category === cat ? "rgba(0,229,176,0.1)" : C.surface2,
-                      border: `1.5px solid ${category === cat ? C.accent : C.border}`,
-                      color: category === cat ? C.accent : C.muted,
-                    }}>
-                      {cat === "anime" ? "🎌 Anime" : "📺 TV Shows"}
-                    </button>
-                  ))}
-                </div>
-              </div>
-            )}
+            {/* Specific titles — optional but recommended. Empty = generic
+                questions for the chosen category. */}
+            <div>
+              <label style={{ display: "block", fontSize: "11px", fontWeight: 600, letterSpacing: "0.1em", textTransform: "uppercase", color: C.muted, marginBottom: "8px" }}>
+                Titles <span style={{ color: C.border, fontWeight: 400, textTransform: "none", letterSpacing: 0 }}>— up to 3, optional</span>
+              </label>
+              <TitleMultiSelect
+                category={category}
+                selected={selectedTitles}
+                onChange={setSelectedTitles}
+                placeholder={
+                  category === "anime"
+                    ? "e.g. One Piece, Naruto…"
+                    : category === "tv_shows"
+                      ? "e.g. Breaking Bad, The Office…"
+                      : "e.g. Inception, The Matrix…"
+                }
+              />
+              <p style={{ fontSize: "12px", color: C.muted, marginTop: "6px" }}>
+                {selectedTitles.length === 0
+                  ? prefillTopic.trim()
+                    ? `Will use "${prefillTopic}" as the topic. Pick titles above to override.`
+                    : "Leave blank for a mix of questions across the category."
+                  : `Questions will focus on ${selectedTitles.length === 1 ? "this title" : `these ${selectedTitles.length} titles`}.`}
+              </p>
+            </div>
 
             {/* Difficulty */}
             <div>
@@ -292,7 +329,7 @@ function HostPageInner() {
           display: "flex", justifyContent: "space-between",
           fontSize: "12px", color: C.muted, marginBottom: "12px",
         }}>
-          <span>Category: <span style={{ color: C.text }}>{category === "anime" ? "Anime" : "TV Shows"}</span></span>
+          <span>Category: <span style={{ color: C.text }}>{category === "anime" ? "Anime" : category === "tv_shows" ? "TV Shows" : "Movies"}</span></span>
           <span>Difficulty: <span style={{ color: difficultyColor[difficulty] }}>{difficultyLabel[difficulty]}</span></span>
           <span>Questions: <span style={{ color: C.text }}>{questionCount}</span></span>
         </div>
