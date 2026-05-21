@@ -8,10 +8,17 @@ import { useGameStore } from "@/store/gameStore";
 import { Question, Player } from "@/types";
 
 const C = {
-  bg: "#0a0a0f", surface: "#13131a", surface2: "#1c1c27",
+  bg: "#0a0a14", surface: "#13131a", surface2: "#1c1c27",
   border: "#2a2a3a", accent: "#00e5b0", accent2: "#f5a623",
   danger: "#ff4d6d", text: "#f0f0f8", muted: "#6b6b8a",
 };
+
+// Per-position option colors — each of the four answer slots gets its own
+// vibrant background so the question screen feels game-y rather than like
+// a static form. Coral / cobalt / violet / amber. Chosen to harmonize with
+// the deep-navy background and to feel distinct from Kahoot's primaries.
+const OPT_COLORS = ["#ff5d73", "#4d8cff", "#b66dff", "#ffb84d"];
+const OPT_COLORS_DIM = ["#7a2c37", "#264769", "#5a3680", "#7a5826"];
 
 type FloatingReaction = { id: number; emoji: string; x: number };
 
@@ -646,14 +653,52 @@ export default function GamePage() {
     const medalBorder = ["rgba(245,166,35,0.3)", "rgba(160,160,180,0.3)", "rgba(180,100,50,0.3)"];
     const myPlayer = sorted.find((p) => p.id === playerId);
     const myRank = sorted.findIndex((p) => p.id === playerId) + 1;
+
+    // Generate confetti particles. Random positions, colors, sizes, delays.
+    // 40 is enough to feel celebratory without lagging mobile devices.
+    const confettiColors = ["#ff5d73", "#4d8cff", "#b66dff", "#ffb84d", "#00e5b0", "#f5a623"];
+    const confetti = Array.from({ length: 40 }).map((_, i) => ({
+      id: i,
+      left: Math.random() * 100,
+      delay: Math.random() * 1.5,
+      duration: 2.5 + Math.random() * 2,
+      color: confettiColors[i % confettiColors.length],
+      size: 6 + Math.random() * 8,
+    }));
+
     return (
-      <main style={{ minHeight: "100vh", background: C.bg, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: "24px", fontFamily: "'DM Sans', sans-serif" }}>
-        <div style={{ width: "100%", maxWidth: "440px" }}>
-          <div style={{ textAlign: "center", marginBottom: "24px", paddingTop: "8px" }}>
-            <div style={{ fontSize: "52px", marginBottom: "10px" }}>🏆</div>
-            <p style={{ fontSize: "11px", letterSpacing: "0.15em", textTransform: "uppercase", color: C.accent, marginBottom: "6px" }}>Winner</p>
-            <h1 style={{ fontFamily: "'Syne', sans-serif", fontSize: "40px", fontWeight: 800, marginBottom: "4px" }}>{sorted[0]?.name}</h1>
-            <p style={{ color: C.accent2, fontFamily: "'Syne', sans-serif", fontWeight: 700, fontSize: "20px", marginBottom: "2px" }}>{sorted[0]?.score} pts</p>
+      <main style={{ minHeight: "100vh", background: C.bg, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: "24px", fontFamily: "'DM Sans', sans-serif", position: "relative", overflow: "hidden" }}>
+        {/* Confetti layer — pointer-events:none so it doesn't intercept clicks
+            on the buttons below. */}
+        <div style={{ position: "fixed", inset: 0, pointerEvents: "none", overflow: "hidden", zIndex: 1 }}>
+          {confetti.map((c) => (
+            <div
+              key={c.id}
+              style={{
+                position: "absolute",
+                top: "-20px",
+                left: `${c.left}%`,
+                width: `${c.size}px`,
+                height: `${c.size}px`,
+                background: c.color,
+                borderRadius: c.id % 3 === 0 ? "50%" : "2px",
+                animation: `confettiFall ${c.duration}s linear ${c.delay}s infinite`,
+              }}
+            />
+          ))}
+        </div>
+
+        <div style={{ width: "100%", maxWidth: "440px", position: "relative", zIndex: 2 }}>
+          <div style={{
+            textAlign: "center",
+            marginBottom: "24px",
+            paddingTop: "8px",
+            animation: "winnerReveal 0.9s cubic-bezier(0.34, 1.56, 0.64, 1) both",
+          }}>
+            <div style={{ fontSize: "64px", marginBottom: "10px" }}>🏆</div>
+            <p style={{ fontSize: "12px", letterSpacing: "0.18em", textTransform: "uppercase", color: C.accent, marginBottom: "6px", fontWeight: 700 }}>Winner</p>
+            <h1 style={{ fontFamily: "'Syne', sans-serif", fontSize: "44px", fontWeight: 900, marginBottom: "4px", letterSpacing: "-0.02em" }}>{sorted[0]?.name}</h1>
+            <p style={{ color: C.accent2, fontFamily: "'Syne', sans-serif", fontWeight: 800, fontSize: "24px", marginBottom: "2px" }}>{sorted[0]?.score} pts</p>
             {sorted.length === 1 && (
               <p style={{ fontSize: "12px", color: C.muted, marginTop: "4px" }}>Solo game</p>
             )}
@@ -663,6 +708,7 @@ export default function GamePage() {
               background: "rgba(0,229,176,0.06)", border: "1px solid rgba(0,229,176,0.15)",
               borderRadius: "12px", padding: "14px 16px", marginBottom: "12px",
               display: "flex", justifyContent: "space-around", alignItems: "center",
+              animation: "fadeUp 0.6s ease 0.4s both",
             }}>
               <div style={{ textAlign: "center" }}>
                 <p style={{ fontSize: "22px", fontWeight: 700, fontFamily: "'Syne', sans-serif", color: C.accent }}>{myPlayer.score}</p>
@@ -688,6 +734,9 @@ export default function GamePage() {
                 padding: "14px 16px", borderRadius: "12px",
                 background: i < 3 ? medalBg[i] : C.surface,
                 border: `1px solid ${i < 3 ? medalBorder[i] : C.border}`,
+                // Each row fades in slightly after the previous so the standings
+                // reveal cascades rather than appearing all at once.
+                animation: `fadeUp 0.5s ease ${0.6 + i * 0.1}s both`,
               }}>
                 <span style={{ fontSize: "22px", width: "28px", textAlign: "center" }}>
                   {i < 3 ? medals[i] : <span style={{ fontFamily: "'Syne', sans-serif", fontWeight: 700, color: C.muted, fontSize: "14px" }}>{i + 1}</span>}
@@ -800,7 +849,14 @@ export default function GamePage() {
             {currentIndex + 1}<span style={{ color: C.muted, fontWeight: 400, fontSize: "14px" }}>/{questions.length}</span>
           </p>
         </div>
-        <div style={{ position: "relative", width: "56px", height: "56px" }}>
+        <div style={{
+          position: "relative",
+          width: "56px",
+          height: "56px",
+          animation: timeLeft <= 10 && phase === "question"
+            ? "timerPulse 0.8s ease-in-out infinite"
+            : undefined,
+        }}>
           <svg style={{ position: "absolute", inset: 0, transform: "rotate(-90deg)" }} width="56" height="56" viewBox="0 0 56 56">
             <circle cx="28" cy="28" r="24" fill="none" stroke={C.surface2} strokeWidth="3" />
             <circle cx="28" cy="28" r="24" fill="none" stroke={timerColor} strokeWidth="3" strokeLinecap="round"
@@ -822,45 +878,100 @@ export default function GamePage() {
       </div>
 
       {currentQuestion && (
-        <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: "12px" }}>
-          <div style={{ background: C.surface, border: `1px solid ${C.border}`, borderRadius: "16px", padding: "24px" }}>
-            <p style={{ fontSize: "17px", fontWeight: 500, lineHeight: 1.5 }}>{currentQuestion.text}</p>
+        <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: "14px" }}>
+          {/* Question card — elevated with a soft gradient, larger type, and
+              a result-pulse animation on resolve. The pulseKey changes per
+              question so the animation re-fires cleanly. */}
+          <div
+            key={`qcard-${currentIndex}-${phase}`}
+            style={{
+              background: "linear-gradient(180deg, #1a1a2e 0%, #15151f 100%)",
+              border: `1px solid ${C.border}`,
+              borderRadius: "16px",
+              padding: "28px 24px",
+              boxShadow: "0 8px 24px rgba(0,0,0,0.4)",
+              animation:
+                phase === "result"
+                  ? `${isCorrect ? "pulseCorrect" : "pulseWrong"} 0.9s ease-out 1`
+                  : undefined,
+            }}
+          >
+            <p style={{ fontSize: "19px", fontWeight: 600, lineHeight: 1.45, textAlign: "center" }}>
+              {currentQuestion.text}
+            </p>
           </div>
 
-          <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
-            {currentQuestion.options?.map((option: string) => {
-              let bg = C.surface2;
-              let border = C.border;
-              let color = C.text;
+          <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
+            {currentQuestion.options?.map((option: string, i: number) => {
+              const baseColor = OPT_COLORS[i] || C.surface2;
+              const dimColor = OPT_COLORS_DIM[i] || C.surface2;
+              let bg = baseColor;
+              let color = "#ffffff";
               let opacity = 1;
+              let borderColor = "transparent";
+              let extraShadow = "0 4px 12px rgba(0,0,0,0.25)";
+              let label = "✗"; // placeholder, only used in result state
+
               if (phase === "result") {
-                if (option === correctAnswer) { bg = "rgba(0,229,176,0.12)"; border = C.accent; color = C.accent; }
-                else if (option === selectedAnswer && option !== correctAnswer) { bg = "rgba(255,77,109,0.1)"; border = C.danger; color = C.danger; }
-                else { opacity = 0.35; }
+                if (option === correctAnswer) {
+                  // Correct option: always vibrant + green ring overlay.
+                  bg = baseColor;
+                  borderColor = C.accent;
+                  extraShadow = `0 0 0 3px ${C.accent}, 0 6px 20px rgba(0,229,176,0.4)`;
+                  label = "✓";
+                } else if (option === selectedAnswer) {
+                  // Selected but wrong: dim base color + red ring.
+                  bg = dimColor;
+                  borderColor = C.danger;
+                  extraShadow = `0 0 0 3px ${C.danger}, 0 4px 16px rgba(255,77,109,0.3)`;
+                  label = "✗";
+                } else {
+                  // Not chosen, not correct: faded.
+                  bg = dimColor;
+                  opacity = 0.55;
+                  extraShadow = "none";
+                }
               } else if (option === selectedAnswer) {
-                bg = "rgba(0,229,176,0.08)"; border = C.accent;
+                // Question phase, this is your pick: subtle scale + white outline.
+                borderColor = "rgba(255,255,255,0.5)";
+                extraShadow = `0 0 0 2px rgba(255,255,255,0.4), 0 6px 16px rgba(0,0,0,0.35)`;
               }
-              const icon = phase === "result"
-                ? option === correctAnswer ? "✓" : option === selectedAnswer ? "✗" : null
-                : null;
-              const style = {
-                width: "100%", padding: "16px 20px",
-                minHeight: "56px",
-                borderRadius: "12px", textAlign: "left" as const,
-                background: bg, border: `1.5px solid ${border}`, color, opacity,
-                fontSize: "15px", fontFamily: "'DM Sans', sans-serif",
+
+              const showLabel = phase === "result" && (option === correctAnswer || option === selectedAnswer);
+
+              const style: React.CSSProperties = {
+                width: "100%",
+                padding: "18px 20px",
+                minHeight: "64px",
+                borderRadius: "14px",
+                textAlign: "left",
+                background: bg,
+                border: `2px solid ${borderColor}`,
+                color,
+                opacity,
+                fontSize: "16px",
+                fontWeight: 700,
+                fontFamily: "'DM Sans', sans-serif",
                 cursor: isHost || selectedAnswer || phase === "result" ? "default" : "pointer",
-                transition: "all 0.12s ease",
-                display: "flex", alignItems: "center", gap: "10px",
+                transition: "all 0.18s ease",
+                display: "flex",
+                alignItems: "center",
+                gap: "12px",
+                boxShadow: extraShadow,
+                letterSpacing: "0.01em",
               };
               return isHost ? (
                 <div key={option} style={style}>
-                  {icon && <span style={{ fontWeight: 700, flexShrink: 0 }}>{icon}</span>}
+                  {showLabel && (
+                    <span style={{ fontWeight: 900, fontSize: "20px", flexShrink: 0 }}>{label}</span>
+                  )}
                   {option}
                 </div>
               ) : (
                 <button key={option} onClick={() => selectAnswer(option)} disabled={phase === "result"} style={style}>
-                  {icon && <span style={{ fontWeight: 700, flexShrink: 0 }}>{icon}</span>}
+                  {showLabel && (
+                    <span style={{ fontWeight: 900, fontSize: "20px", flexShrink: 0 }}>{label}</span>
+                  )}
                   {option}
                 </button>
               );
@@ -903,15 +1014,54 @@ export default function GamePage() {
               ) : (
                 <>
                   <div style={{
-                    padding: "16px", borderRadius: "12px", textAlign: "center",
-                    background: isCorrect ? "rgba(0,229,176,0.07)" : "rgba(255,77,109,0.07)",
-                    border: `1px solid ${isCorrect ? "rgba(0,229,176,0.2)" : "rgba(255,77,109,0.2)"}`,
+                    padding: "20px 16px",
+                    borderRadius: "16px",
+                    textAlign: "center",
+                    background: isCorrect
+                      ? "linear-gradient(180deg, rgba(0,229,176,0.18), rgba(0,229,176,0.08))"
+                      : "linear-gradient(180deg, rgba(255,77,109,0.18), rgba(255,77,109,0.08))",
+                    border: `2px solid ${isCorrect ? "rgba(0,229,176,0.5)" : "rgba(255,77,109,0.5)"}`,
+                    boxShadow: isCorrect
+                      ? "0 6px 24px rgba(0,229,176,0.15)"
+                      : "0 6px 24px rgba(255,77,109,0.15)",
                   }}>
-                    <p style={{ fontFamily: "'Syne', sans-serif", fontWeight: 700, fontSize: "18px", color: isCorrect ? C.accent : C.danger, marginBottom: "4px" }}>
+                    <p style={{
+                      fontFamily: "'Syne', sans-serif",
+                      fontWeight: 900,
+                      fontSize: "36px",
+                      color: isCorrect ? C.accent : C.danger,
+                      marginBottom: "6px",
+                      letterSpacing: "-0.02em",
+                      animationName: "slamIn",
+                      animationDuration: "0.5s",
+                      animationTimingFunction: "cubic-bezier(0.34, 1.56, 0.64, 1)",
+                      animationFillMode: "both",
+                    }}>
                       {isCorrect ? "Correct!" : "Wrong!"}
                     </p>
-                    {!isCorrect && <p style={{ fontSize: "13px", color: C.muted, marginBottom: "4px" }}>Answer: <span style={{ color: C.accent }}>{correctAnswer}</span></p>}
-                    <p style={{ fontSize: "12px", color: C.muted }}>Score: <span style={{ fontWeight: 700, color: C.text }}>{score} pts</span></p>
+                    {!isCorrect && (
+                      <p style={{ fontSize: "14px", color: C.muted, marginBottom: "8px" }}>
+                        Answer: <span style={{ color: C.accent, fontWeight: 700 }}>{correctAnswer}</span>
+                      </p>
+                    )}
+                    <p style={{
+                      fontSize: "13px",
+                      color: C.muted,
+                      letterSpacing: "0.08em",
+                      textTransform: "uppercase",
+                      marginTop: "4px",
+                    }}>
+                      Score
+                    </p>
+                    <p style={{
+                      fontFamily: "'Syne', sans-serif",
+                      fontWeight: 800,
+                      fontSize: "32px",
+                      color: C.text,
+                      lineHeight: 1,
+                    }}>
+                      {score} <span style={{ fontSize: "16px", color: C.muted, fontWeight: 500 }}>pts</span>
+                    </p>
                   </div>
                   {commentary && (
                     <p style={{
@@ -988,14 +1138,6 @@ export default function GamePage() {
           </div>
         </div>
       )}
-
-      <style>{`
-        @keyframes floatUp {
-          0%   { transform: translateY(0) scale(1);   opacity: 1; }
-          80%  { transform: translateY(-160px) scale(1.2); opacity: 0.8; }
-          100% { transform: translateY(-200px) scale(0.8); opacity: 0; }
-        }
-      `}</style>
     </main>
   );
 }
