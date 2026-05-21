@@ -13,13 +13,6 @@ const C = {
   danger: "#ff4d6d", text: "#f0f0f8", muted: "#6b6b8a",
 };
 
-// Per-position option colors — each of the four answer slots gets its own
-// vibrant background so the question screen feels game-y rather than like
-// a static form. Coral / cobalt / violet / amber. Chosen to harmonize with
-// the deep-navy background and to feel distinct from Kahoot's primaries.
-const OPT_COLORS = ["#ff5d73", "#4d8cff", "#b66dff", "#ffb84d"];
-const OPT_COLORS_DIM = ["#7a2c37", "#264769", "#5a3680", "#7a5826"];
-
 type FloatingReaction = { id: number; emoji: string; x: number };
 
 function ReportButton({ questionId, code }: { questionId?: string; code: string }) {
@@ -903,76 +896,131 @@ export default function GamePage() {
 
           <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
             {currentQuestion.options?.map((option: string, i: number) => {
-              const baseColor = OPT_COLORS[i] || C.surface2;
-              const dimColor = OPT_COLORS_DIM[i] || C.surface2;
-              let bg = baseColor;
-              let color = "#ffffff";
+              const letter = String.fromCharCode(65 + i); // A, B, C, D
+
+              // Per-state visual config. Unified dark base across all four
+              // slots — no per-position hue identity. Result state uses
+              // green for the correct answer and red for the chosen-wrong;
+              // unchosen incorrect options fade.
+              const isCorrectOpt = phase === "result" && option === correctAnswer;
+              const isChosenWrong = phase === "result" && option === selectedAnswer && option !== correctAnswer;
+              const isChosen = option === selectedAnswer;
+              const inResult = phase === "result";
+
+              // Default: dark slate gradient with a soft inner top-edge
+              // highlight that gives the button physical "press me" depth.
+              let bgGradient = "linear-gradient(180deg, #232838 0%, #1a1d2a 100%)";
+              let borderColor = "rgba(255,255,255,0.08)";
+              let textColor = C.text;
               let opacity = 1;
-              let borderColor = "transparent";
-              let extraShadow = "0 4px 12px rgba(0,0,0,0.25)";
-              let label = "✗"; // placeholder, only used in result state
+              let shadow = "0 4px 12px rgba(0,0,0,0.35), inset 0 1px 0 rgba(255,255,255,0.08)";
+              let badgeBg = "rgba(255,255,255,0.06)";
+              let badgeColor = C.muted;
 
-              if (phase === "result") {
-                if (option === correctAnswer) {
-                  // Correct option: always vibrant + green ring overlay.
-                  bg = baseColor;
-                  borderColor = C.accent;
-                  extraShadow = `0 0 0 3px ${C.accent}, 0 6px 20px rgba(0,229,176,0.4)`;
-                  label = "✓";
-                } else if (option === selectedAnswer) {
-                  // Selected but wrong: dim base color + red ring.
-                  bg = dimColor;
-                  borderColor = C.danger;
-                  extraShadow = `0 0 0 3px ${C.danger}, 0 4px 16px rgba(255,77,109,0.3)`;
-                  label = "✗";
-                } else {
-                  // Not chosen, not correct: faded.
-                  bg = dimColor;
-                  opacity = 0.55;
-                  extraShadow = "none";
-                }
-              } else if (option === selectedAnswer) {
-                // Question phase, this is your pick: subtle scale + white outline.
-                borderColor = "rgba(255,255,255,0.5)";
-                extraShadow = `0 0 0 2px rgba(255,255,255,0.4), 0 6px 16px rgba(0,0,0,0.35)`;
+              if (isCorrectOpt) {
+                // Correct answer reveal: green-tinted gradient + green glow.
+                bgGradient = "linear-gradient(180deg, #1b3d35 0%, #163029 100%)";
+                borderColor = C.accent;
+                textColor = "#ffffff";
+                shadow = `0 0 0 2px ${C.accent}, 0 8px 22px rgba(0,229,176,0.35), inset 0 1px 0 rgba(255,255,255,0.12)`;
+                badgeBg = C.accent;
+                badgeColor = "#0a0a14";
+              } else if (isChosenWrong) {
+                // The wrong pick the player made: red-tinted + red glow.
+                bgGradient = "linear-gradient(180deg, #3d1d28 0%, #2a1620 100%)";
+                borderColor = C.danger;
+                textColor = "#ffffff";
+                shadow = `0 0 0 2px ${C.danger}, 0 6px 18px rgba(255,77,109,0.3), inset 0 1px 0 rgba(255,255,255,0.08)`;
+                badgeBg = C.danger;
+                badgeColor = "#ffffff";
+              } else if (inResult) {
+                // Unchosen incorrect options: faded.
+                opacity = 0.45;
+                shadow = "0 2px 6px rgba(0,0,0,0.25)";
+              } else if (isChosen) {
+                // Question phase, the option this player picked but hasn't
+                // submitted yet: teal accent ring (the "two-tone" hover).
+                borderColor = C.accent;
+                shadow = `0 0 0 2px ${C.accent}, 0 8px 20px rgba(0,229,176,0.2), inset 0 1px 0 rgba(255,255,255,0.12)`;
+                badgeBg = C.accent;
+                badgeColor = "#0a0a14";
               }
-
-              const showLabel = phase === "result" && (option === correctAnswer || option === selectedAnswer);
 
               const style: React.CSSProperties = {
                 width: "100%",
-                padding: "18px 20px",
+                padding: "16px 18px",
                 minHeight: "64px",
-                borderRadius: "14px",
+                borderRadius: "16px",
                 textAlign: "left",
-                background: bg,
-                border: `2px solid ${borderColor}`,
-                color,
+                background: bgGradient,
+                border: `1.5px solid ${borderColor}`,
+                color: textColor,
                 opacity,
                 fontSize: "16px",
-                fontWeight: 700,
+                fontWeight: 600,
                 fontFamily: "'DM Sans', sans-serif",
-                cursor: isHost || selectedAnswer || phase === "result" ? "default" : "pointer",
+                cursor: isHost || selectedAnswer || inResult ? "default" : "pointer",
                 transition: "all 0.18s ease",
                 display: "flex",
                 alignItems: "center",
-                gap: "12px",
-                boxShadow: extraShadow,
+                gap: "14px",
+                boxShadow: shadow,
                 letterSpacing: "0.01em",
               };
+
+              // Letter badge on the left — adds option identity without
+              // using color per-position. Also helps with verbal call-outs
+              // ("I picked B"), which is a small party-game affordance.
+              const badge = (
+                <span
+                  aria-hidden
+                  style={{
+                    width: "34px",
+                    height: "34px",
+                    borderRadius: "10px",
+                    display: "inline-flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    background: badgeBg,
+                    color: badgeColor,
+                    fontFamily: "'Syne', sans-serif",
+                    fontWeight: 800,
+                    fontSize: "15px",
+                    flexShrink: 0,
+                    transition: "all 0.18s ease",
+                  }}
+                >
+                  {isCorrectOpt ? "✓" : isChosenWrong ? "✗" : letter}
+                </span>
+              );
+
               return isHost ? (
                 <div key={option} style={style}>
-                  {showLabel && (
-                    <span style={{ fontWeight: 900, fontSize: "20px", flexShrink: 0 }}>{label}</span>
-                  )}
-                  {option}
+                  {badge}
+                  <span style={{ flex: 1 }}>{option}</span>
                 </div>
               ) : (
-                <button key={option} onClick={() => selectAnswer(option)} disabled={phase === "result"} style={style}>
-                  {showLabel && (
-                    <span style={{ fontWeight: 900, fontSize: "20px", flexShrink: 0 }}>{label}</span>
-                  )}
-                  {option}
+                <button
+                  key={option}
+                  onClick={() => selectAnswer(option)}
+                  disabled={inResult}
+                  style={style}
+                  onMouseEnter={(e) => {
+                    // Subtle lift on hover for the unselected, in-question state.
+                    if (!isChosen && !inResult) {
+                      e.currentTarget.style.borderColor = "rgba(0,229,176,0.45)";
+                      e.currentTarget.style.transform = "translateY(-1px)";
+                    }
+                  }}
+                  onMouseLeave={(e) => {
+                    if (!isChosen && !inResult) {
+                      e.currentTarget.style.borderColor = "rgba(255,255,255,0.08)";
+                      e.currentTarget.style.transform = "translateY(0)";
+                    }
+                  }}
+                >
+                  {badge}
+                  <span style={{ flex: 1 }}>{option}</span>
                 </button>
               );
             })}
