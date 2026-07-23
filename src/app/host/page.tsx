@@ -40,6 +40,7 @@ function HostPageInner() {
   const [error, setError] = useState("");
   const [questionsReady, setQuestionsReady] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [shareOrigin, setShareOrigin] = useState("");
 
   // Pre-fill topic from quick-start chip on home page. Treats the param as
   // a free-text topic — same behavior as before, so existing landing-page
@@ -53,6 +54,9 @@ function HostPageInner() {
   }, [searchParams]);
 
   useEffect(() => { return () => gameSocket.disconnect(); }, []);
+
+  // window is undefined during SSR, so read the origin after mount.
+  useEffect(() => { setShareOrigin(window.location.origin); }, []);
 
   async function createGame() {
     if (!hostName.trim()) { setError("Please enter your name"); return; }
@@ -303,10 +307,10 @@ function HostPageInner() {
             wordBreak: "break-all",
           }}>{gameCode}</p>
           <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: "8px", marginTop: "4px" }}>
-            <p style={{ fontSize: "12px", color: C.muted }}>playfanatic.app/play/{gameCode}</p>
+            <p style={{ fontSize: "12px", color: C.muted }}>{shareOrigin.replace(/^https?:\/\//, "")}/play/{gameCode}</p>
             <button
               onClick={() => {
-                navigator.clipboard.writeText(`https://playfanatic.app/play/${gameCode}`);
+                navigator.clipboard.writeText(`${window.location.origin}/play/${gameCode}`);
                 setCopied(true);
                 setTimeout(() => setCopied(false), 2000);
               }}
