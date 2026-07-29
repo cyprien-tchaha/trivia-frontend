@@ -24,9 +24,9 @@ export default function Home() {
   }, []);
 
   const categories = [
-    { label: "Anime", topic: "Anime" },
-    { label: "TV Shows", topic: "TV Shows" },
     { label: "One Piece", topic: "One Piece" },
+    { label: "Naruto", topic: "Naruto" },
+    { label: "Jujutsu Kaisen", topic: "Jujutsu Kaisen" },
     { label: "Breaking Bad", topic: "Breaking Bad" },
     { label: "Marvel", topic: "Marvel" },
     { label: "Any Topic →", topic: "" },
