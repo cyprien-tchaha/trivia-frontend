@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useState, useEffect, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import api from "@/lib/api";
@@ -151,7 +152,7 @@ function HostPageInner() {
         padding: "24px", fontFamily: "'DM Sans', sans-serif",
       }}>
         <div style={{ width: "100%", maxWidth: "440px" }}>
-          <a href="/" style={{ color: C.muted, fontSize: "14px", textDecoration: "none", display: "block", marginBottom: "32px" }}>← Back</a>
+          <Link href="/" style={{ color: C.muted, fontSize: "14px", textDecoration: "none", display: "block", marginBottom: "32px" }}>← Back</Link>
 
           <h1 style={{ fontFamily: "'Syne', sans-serif", fontSize: "36px", fontWeight: 800, marginBottom: "4px" }}>
             <span style={{ color: C.accent }}>fan</span><span style={{ color: C.text }}>atic</span>

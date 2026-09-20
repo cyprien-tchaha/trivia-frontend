@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useState, useEffect, useCallback, useRef } from "react";
 import { useParams } from "next/navigation";
 import api from "@/lib/api";
@@ -634,7 +635,7 @@ export default function GamePage() {
       <div style={{ textAlign: "center" }}>
         <p style={{ fontFamily: "'Syne', sans-serif", fontSize: "20px", fontWeight: 700, marginBottom: "8px" }}>No questions found</p>
         <p style={{ color: C.muted, fontSize: "14px", marginBottom: "24px" }}>Something went wrong generating questions.</p>
-        <a href="/" style={{ padding: "12px 24px", background: C.accent, color: "#0a0a0f", borderRadius: "10px", textDecoration: "none", fontWeight: 700, fontFamily: "'Syne', sans-serif" }}>Go Home</a>
+        <Link href="/" style={{ padding: "12px 24px", background: C.accent, color: "#0a0a0f", borderRadius: "10px", textDecoration: "none", fontWeight: 700, fontFamily: "'Syne', sans-serif" }}>Go Home</Link>
       </div>
     </main>
   );
@@ -780,12 +781,12 @@ export default function GamePage() {
                 fontSize: "15px", fontWeight: 700, fontFamily: "'Syne', sans-serif",
                 border: "none", background: C.accent, color: "#0a0a0f", cursor: "pointer",
               }}>Play Again — Same Players</button>
-              <a href="/" style={{
+              <Link href="/" style={{
                 display: "block", width: "100%", padding: "14px", textAlign: "center",
                 color: C.muted, borderRadius: "12px", textDecoration: "none",
                 fontFamily: "'Syne', sans-serif", fontWeight: 600, fontSize: "14px",
                 border: `1px solid ${C.border}`,
-              }}>New Game</a>
+              }}>New Game</Link>
             </div>
           ) : (
             <div style={{ textAlign: "center" }}>
@@ -797,12 +798,12 @@ export default function GamePage() {
                 <span style={{ width: "8px", height: "8px", borderRadius: "50%", background: C.accent, display: "inline-block" }} />
                 <span style={{ fontSize: "14px", color: C.accent }}>Waiting for host to restart...</span>
               </div>
-              <a href="/" style={{
+              <Link href="/" style={{
                 display: "inline-block", padding: "12px 24px",
                 background: C.surface, color: C.muted, borderRadius: "10px",
                 textDecoration: "none", fontFamily: "'Syne', sans-serif",
                 fontWeight: 700, fontSize: "14px", border: `1px solid ${C.border}`,
-              }}>Leave Game</a>
+              }}>Leave Game</Link>
             </div>
           )}
         </div>

@@ -1,23 +1,40 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import { useRouter } from "next/navigation";
+import Link from "next/link";
+import { Suspense, useEffect } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
+
+const LOAD_ERRORS: Record<string, string> = {
+  game_load_failed: "The game couldn't load. It may have ended or the link expired.",
+  removed_by_host: "The host removed you from the game.",
+};
+
+function LoadErrorBanner() {
+  // Derived during render instead of pushed into state from an effect, which
+  // cost an extra render on every mount. useSearchParams opts its subtree out
+  // of static prerendering, which is why only this banner lives behind the
+  // Suspense boundary below — wrapping the whole page would leave the static
+  // HTML empty until hydration.
+  const loadError = LOAD_ERRORS[useSearchParams().get("error") ?? ""] ?? "";
+  if (!loadError) return null;
+
+  return (
+    <div style={{
+      position: "fixed", top: "16px", left: "50%", transform: "translateX(-50%)",
+      background: "rgba(255,77,109,0.1)", border: "1px solid rgba(255,77,109,0.3)",
+      borderRadius: "10px", padding: "12px 20px", zIndex: 100,
+      color: "#ff4d6d", fontSize: "14px", textAlign: "center",
+      fontFamily: "'DM Sans', sans-serif",
+    }}>
+      {loadError}
+    </div>
+  );
+}
 
 export default function Home() {
-  const [loadError, setLoadError] = useState<string>("");
   const router = useRouter();
 
   useEffect(() => {
-    if (typeof window !== "undefined") {
-      const params = new URLSearchParams(window.location.search);
-      const err = params.get("error");
-      if (err === "game_load_failed") {
-        setLoadError("The game couldn't load. It may have ended or the link expired.");
-      } else if (err === "removed_by_host") {
-        setLoadError("The host removed you from the game.");
-      }
-    }
-
     // Wake up Railway backend when home page loads
     fetch(`${process.env.NEXT_PUBLIC_API_URL?.replace("/api", "")}/health`)
       .catch(() => {}); // Silently ignore if it fails
@@ -43,17 +60,9 @@ export default function Home() {
       padding: "24px",
       fontFamily: "'DM Sans', sans-serif",
     }}>
-      {loadError && (
-        <div style={{
-          position: "fixed", top: "16px", left: "50%", transform: "translateX(-50%)",
-          background: "rgba(255,77,109,0.1)", border: "1px solid rgba(255,77,109,0.3)",
-          borderRadius: "10px", padding: "12px 20px", zIndex: 100,
-          color: "#ff4d6d", fontSize: "14px", textAlign: "center",
-          fontFamily: "'DM Sans', sans-serif",
-        }}>
-          {loadError}
-        </div>
-      )}
+      <Suspense fallback={null}>
+        <LoadErrorBanner />
+      </Suspense>
 
       {/* Glow effects */}
       <div style={{
@@ -132,7 +141,7 @@ export default function Home() {
 
         {/* Buttons */}
         <div style={{ display: "flex", flexDirection: "column", gap: "10px", width: "100%", marginBottom: "24px" }}>
-          <a href="/host" style={{
+          <Link href="/host" style={{
             display: "flex", alignItems: "center", justifyContent: "center", gap: "8px",
             padding: "16px 24px",
             background: "#00e5b0", color: "#0a0a0f",
@@ -147,8 +156,8 @@ export default function Home() {
               <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
             </svg>
             Host a Game
-          </a>
-          <a href="/play" style={{
+          </Link>
+          <Link href="/play" style={{
             display: "flex", alignItems: "center", justifyContent: "center", gap: "8px",
             padding: "16px 24px",
             background: "#13131a", color: "#f0f0f8",
@@ -170,7 +179,7 @@ export default function Home() {
               <path strokeLinecap="round" strokeLinejoin="round" d="M17 8l4 4m0 0l-4 4m4-4H3" />
             </svg>
             Join a Game
-          </a>
+          </Link>
         </div>
 
         {/* Quick-start chips */}

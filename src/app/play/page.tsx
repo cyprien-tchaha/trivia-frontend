@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import api from "@/lib/api";
@@ -21,9 +22,14 @@ const FACTS = [
 ];
 
 function TriviaFact() {
-  const [fact, setFact] = useState(FACTS[Math.floor(Math.random() * FACTS.length)]);
+  const [fact, setFact] = useState(FACTS[0]);
   const [visible, setVisible] = useState(true);
 
+  // Starts on a fixed fact and randomises from the interval callback below.
+  // Seeding it with Math.random() instead — in the useState initializer or in
+  // the effect body — either runs on the server (so server and client pick
+  // different facts and hydration mismatches) or forces a second render on
+  // mount. The first fact being the same for everyone is not worth either.
   useEffect(() => {
     const interval = setInterval(() => {
       setVisible(false);
@@ -146,7 +152,7 @@ export default function PlayPage() {
         padding: "24px", fontFamily: "'DM Sans', sans-serif",
       }}>
         <div style={{ width: "100%", maxWidth: "440px" }}>
-          <a href="/" style={{ color: C.muted, fontSize: "14px", textDecoration: "none", display: "block", marginBottom: "32px" }}>← Back</a>
+          <Link href="/" style={{ color: C.muted, fontSize: "14px", textDecoration: "none", display: "block", marginBottom: "32px" }}>← Back</Link>
           <h1 style={{ fontFamily: "'Syne', sans-serif", fontSize: "36px", fontWeight: 800, marginBottom: "4px" }}>
             <span style={{ color: C.accent }}>fan</span><span style={{ color: C.text }}>atic</span>
           </h1>
@@ -221,7 +227,7 @@ export default function PlayPage() {
             border: "2px solid rgba(0,229,176,0.3)",
           }}>{playerName[0]?.toUpperCase()}</div>
           <h2 style={{ fontFamily: "'Syne', sans-serif", fontWeight: 700, fontSize: "22px" }}>{playerName}</h2>
-          <p style={{ color: C.accent, fontSize: "13px", marginTop: "4px" }}>You're in!</p>
+          <p style={{ color: C.accent, fontSize: "13px", marginTop: "4px" }}>You&apos;re in!</p>
         </div>
 
         {/* Game info */}
