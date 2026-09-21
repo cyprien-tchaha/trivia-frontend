@@ -12,6 +12,8 @@ export type SelectedTitle = {
   name: string;
   year: number | null;
   image_url: string | null;
+  /** Set by the API for topics the question bank can serve directly. */
+  banked?: boolean;
 };
 
 type Props = {
@@ -316,9 +318,16 @@ export default function TitleMultiSelect({
                     >
                       {r.name}
                     </div>
-                    {r.year && (
+                    {r.banked ? (
+                      <div style={{
+                        fontSize: "11px", color: C.accent, fontWeight: 700,
+                        letterSpacing: "0.04em",
+                      }}>
+                        ⚡ Curated questions
+                      </div>
+                    ) : r.year ? (
                       <div style={{ fontSize: "12px", color: C.muted }}>{r.year}</div>
-                    )}
+                    ) : null}
                   </div>
                 </div>
               );
