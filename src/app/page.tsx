@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { BODY, C, DISPLAY, tile } from "@/lib/theme";
+import AccountChip from "@/components/AccountChip";
 import { Suspense, useEffect } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 
@@ -63,6 +64,12 @@ export default function Home() {
       <Suspense fallback={null}>
         <LoadErrorBanner />
       </Suspense>
+
+      <div style={{
+        position: "fixed", top: "16px", right: "16px", zIndex: 40,
+      }}>
+        <AccountChip />
+      </div>
 
       {/* Soft blobs that drift behind the card — depth without competing
           with the content, since every surface above is opaque. */}

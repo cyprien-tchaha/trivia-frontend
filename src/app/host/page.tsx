@@ -9,6 +9,7 @@ import { useGameStore } from "@/store/gameStore";
 import { Player } from "@/types";
 import TitleMultiSelect, { SelectedTitle, TitleSearchCategory } from "@/components/TitleMultiSelect";
 import { BODY, C, DISPLAY } from "@/lib/theme";
+import AccountChip from "@/components/AccountChip";
 
 /** Darker gold for the CTA's bottom edge. */
 const GOLD_EDGE = "#C48A00";
@@ -124,7 +125,11 @@ function HostPageInner() {
       setStep("lobby");
     } catch (err: unknown) {
       const status = (err as { response?: { status?: number } })?.response?.status;
-      if (status === 500) setError("Our AI is taking a breather. Wait a few seconds and try again.");
+      const detail = (err as { response?: { data?: { detail?: string } } })?.response?.data?.detail;
+      // 402 is "not on this plan", not a failure — show what the API said and
+      // point at the fix rather than a generic try-again.
+      if (status === 402) setError(detail || "That topic needs a Pro account.");
+      else if (status === 500) setError("Our AI is taking a breather. Wait a few seconds and try again.");
       else if (status === 400) setError("Something looks off with your settings. Try adjusting and resubmitting.");
       else setError("Couldn't create the game. Check your connection and try again.");
     }
@@ -161,7 +166,13 @@ function HostPageInner() {
         padding: "24px", fontFamily: BODY,
       }}>
         <div style={{ width: "100%", maxWidth: "440px" }}>
-          <Link href="/" style={{ color: C.muted, fontSize: "14px", textDecoration: "none", display: "block", marginBottom: "32px" }}>← Back</Link>
+          <div style={{
+            display: "flex", alignItems: "center", justifyContent: "space-between",
+            gap: "12px", marginBottom: "32px",
+          }}>
+            <Link href="/" style={{ color: C.muted, fontSize: "14px", textDecoration: "none" }}>← Back</Link>
+            <AccountChip />
+          </div>
 
           <h1 style={{ fontFamily: DISPLAY, fontSize: "36px", fontWeight: 800, marginBottom: "4px" }}>
             <span style={{ color: C.accent }}>fan</span><span style={{ color: C.text }}>atic</span>
