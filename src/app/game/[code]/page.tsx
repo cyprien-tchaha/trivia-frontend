@@ -91,14 +91,42 @@ export default function GamePage() {
   // it covers both the server clock advancing the game and the host doing it
   // manually — the host path goes through the WebSocket relay and carries no
   // deadline of its own.
+  //
+  // Two things have to hold or the deadline is worse than none. The host
+  // advances optimistically — local state first, POST second — so this fires
+  // while the server is still on the *previous* question and answers with its
+  // deadline. Counting down from that started the host's question with only
+  // whatever was left of the last one: a round that took 15s left the host
+  // 15s behind every player, every round. And two syncs can be in flight at
+  // once (the optimistic one and the one after the POST), so the stale reply
+  // must not be allowed to land last.
+  const syncSeqRef = useRef(0);
   const syncClock = useCallback(async () => {
+    const seq = ++syncSeqRef.current;
     try {
       const { data } = await api.get(`/games/${code}`);
+      // A newer sync has started; this reply is already out of date.
+      if (seq !== syncSeqRef.current) return;
       if (data?.server_time) {
         clockOffsetRef.current = Date.parse(data.server_time) - Date.now();
       }
       if (typeof data?.question_seconds === "number") {
         setQuestionSeconds(data.question_seconds);
+      }
+      const serverIndex = data?.current_question_index;
+      const serverPhase = data?.phase ?? "question";
+      // Only reject a deadline when the server is *behind* us. Ahead is
+      // normal and must be accepted: that is the reload-mid-question case,
+      // where refusing the deadline hands the player a fresh full question.
+      const serverIsBehind =
+        (typeof serverIndex === "number" && serverIndex < currentIndexRef.current) ||
+        (serverIndex === currentIndexRef.current &&
+          serverPhase === "result" && phaseRef.current === "question");
+      if (serverIsBehind) {
+        // Tick locally until the server catches up, rather than counting down
+        // to a deadline that belongs to a question we have already left.
+        setDeadlineMs(null);
+        return;
       }
       setDeadlineMs(data?.phase_ends_at ? Date.parse(data.phase_ends_at) : null);
     } catch {
@@ -126,6 +154,9 @@ export default function GamePage() {
   const gameTopicsRef = useRef("");
   const questionsRef = useRef<Question[]>([]);
   const currentIndexRef = useRef(0);
+  // Mirrors `phase` for syncClock, which is memoised on [code] and so cannot
+  // read the state directly.
+  const phaseRef = useRef<"question" | "result" | "finished">("question");
   const commentaryFetchedRef = useRef(false);
   const totalPlayersRef = useRef(0);
 
@@ -466,6 +497,12 @@ export default function GamePage() {
     };
   }, [code, showResult]);
 
+  // Keep phaseRef in step. Declared before the sync effect below so it has
+  // already run by the time that one fires in the same commit.
+  useEffect(() => {
+    phaseRef.current = phase;
+  }, [phase]);
+
   // Sync the deadline on mount and whenever the game moves. Mount matters as
   // much as the transitions: a player reloading mid-question previously came
   // back with no deadline and fell through to the local countdown, handing
@@ -653,9 +690,17 @@ export default function GamePage() {
       setCurrentIndex(nextIndex);
       currentIndexRef.current = nextIndex;
       setTimeLeft(questionSeconds);
+      // Drop the old question's deadline before the UI moves. Until the POST
+      // below lands there is no deadline for this question yet, and ticking
+      // locally from a full clock is right where inheriting the last one was
+      // wrong.
+      setDeadlineMs(null);
       setPhase("question");
+      phaseRef.current = "question";
       setAnswerStart(Date.now());
       await api.post(`/games/${code}/question/${nextIndex}`);
+      // The server has the new deadline now; take it.
+      await syncClock();
       const pr = await api.get(`/games/${code}/players`);
       setPlayers(pr.data);
       gameSocket.send({ event: "next_question", question_index: nextIndex });
