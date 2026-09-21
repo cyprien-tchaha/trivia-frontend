@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import api from "@/lib/api";
+import api, { withAuth } from "@/lib/api";
 
 export type Host = {
   id: string;
@@ -31,7 +31,7 @@ export function useAuth() {
   const refresh = useCallback(async () => {
     try {
       const [meResult, configResult] = await Promise.allSettled([
-        api.get("/auth/me"),
+        api.get("/auth/me", withAuth),
         api.get("/auth/config"),
       ]);
       setHost(meResult.status === "fulfilled" ? meResult.value.data : null);
@@ -55,7 +55,7 @@ export function useAuth() {
 
   const signOut = useCallback(async () => {
     try {
-      await api.post("/auth/logout");
+      await api.post("/auth/logout", null, withAuth);
     } catch {
       // Clearing the cookie is the API's job; if that call fails there is
       // nothing useful to do locally, so drop the state and move on.
