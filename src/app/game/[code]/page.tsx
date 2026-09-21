@@ -77,6 +77,35 @@ export default function GamePage() {
   const [selectedAnswer, setSelectedAnswer] = useState<string | null>(null);
   const [correctAnswer, setCorrectAnswer] = useState<string | null>(null);
   const [timeLeft, setTimeLeft] = useState(60);
+  // The server owns the deadline; this is derived from it, not counted down
+  // locally. Null means the server isn't driving this game (a game started
+  // before the server clock shipped), and we fall back to ticking down.
+  const [deadlineMs, setDeadlineMs] = useState<number | null>(null);
+  const [questionSeconds, setQuestionSeconds] = useState(60);
+  // serverNow - clientNow, measured once per sync. Without it a phone whose
+  // clock is a few minutes out renders a nonsense countdown from a perfectly
+  // correct deadline.
+  const clockOffsetRef = useRef(0);
+
+  // Pull the authoritative deadline. Called wherever the phase changes, so
+  // it covers both the server clock advancing the game and the host doing it
+  // manually — the host path goes through the WebSocket relay and carries no
+  // deadline of its own.
+  const syncClock = useCallback(async () => {
+    try {
+      const { data } = await api.get(`/games/${code}`);
+      if (data?.server_time) {
+        clockOffsetRef.current = Date.parse(data.server_time) - Date.now();
+      }
+      if (typeof data?.question_seconds === "number") {
+        setQuestionSeconds(data.question_seconds);
+      }
+      setDeadlineMs(data?.phase_ends_at ? Date.parse(data.phase_ends_at) : null);
+    } catch {
+      // Leave the previous deadline in place; the old local countdown still
+      // runs underneath, so a failed sync degrades instead of stopping.
+    }
+  }, [code]);
   const [score, setScore] = useState(0);
   const [correctCount, setCorrectCount] = useState(0);
   const [players, setPlayers] = useState<Player[]>([]);
@@ -305,7 +334,7 @@ export default function GamePage() {
         currentIndexRef.current = idx;
         setSelectedAnswer(null);
         setCorrectAnswer(null);
-        setTimeLeft(60);
+        setTimeLeft(questionSeconds);
         setPhase("question");
         setAnswerStart(Date.now());
         setAnswerSubmitted(false);
@@ -344,7 +373,7 @@ export default function GamePage() {
         currentIndexRef.current = 0;
         setSelectedAnswer(null);
         setCorrectAnswer(null);
-        setTimeLeft(60);
+        setTimeLeft(questionSeconds);
         setScore(0);
         setCorrectCount(0);
         setCommentary("");
@@ -392,7 +421,7 @@ export default function GamePage() {
               currentIndexRef.current = si;
               setSelectedAnswer(null);
               setCorrectAnswer(null);
-              setTimeLeft(60);
+              setTimeLeft(questionSeconds);
               setPhase("question");
               setAnswerStart(Date.now());
               setAllAnswered(false);
@@ -437,6 +466,37 @@ export default function GamePage() {
     };
   }, [code, showResult]);
 
+  // Sync the deadline on mount and whenever the game moves. Mount matters as
+  // much as the transitions: a player reloading mid-question previously came
+  // back with no deadline and fell through to the local countdown, handing
+  // themselves a fresh full question.
+  useEffect(() => {
+    syncClock();
+  }, [syncClock, currentIndex, phase]);
+
+  // Drive timeLeft. With a server deadline it is computed from that deadline
+  // on every tick, so the number cannot drift from what the server will
+  // actually do; without one it decrements as it always did.
+  useEffect(() => {
+    if (phase !== "question") return;
+    if (deadlineMs === null) {
+      if (timeLeft <= 0) return;
+      const t = setTimeout(() => setTimeLeft((n) => n - 1), 1000);
+      return () => clearTimeout(t);
+    }
+    const tick = () => {
+      const serverNow = Date.now() + clockOffsetRef.current;
+      setTimeLeft(Math.max(0, Math.ceil((deadlineMs - serverNow) / 1000)));
+    };
+    tick();
+    // Faster than 1s so the displayed second lands close to the real one
+    // rather than up to a second behind it.
+    const id = setInterval(tick, 250);
+    return () => clearInterval(id);
+  }, [phase, deadlineMs, timeLeft]);
+
+  // React to the clock running out. Separate from driving it, so the two
+  // concerns don't fight over the same effect.
   useEffect(() => {
     if (phase !== "question") return;
     if (timeLeft <= 0) {
@@ -458,8 +518,6 @@ export default function GamePage() {
         } catch {}
       })();
     }
-    const t = setTimeout(() => setTimeLeft((n) => n - 1), 1000);
-    return () => clearTimeout(t);
   }, [timeLeft, phase, selectedAnswer, isHost, currentQuestion]);
 
   useEffect(() => {
@@ -476,7 +534,7 @@ export default function GamePage() {
         const si = gameData.current_question_index;
         if (si > currentIndex && phase === "result") {
           setCurrentIndex(si); setSelectedAnswer(null); setCorrectAnswer(null);
-          setTimeLeft(60); setPhase("question"); setAnswerStart(Date.now());
+          setTimeLeft(questionSeconds); setPhase("question"); setAnswerStart(Date.now());
         }
       } catch {}
     }, 10000);
@@ -594,7 +652,7 @@ export default function GamePage() {
     } else {
       setCurrentIndex(nextIndex);
       currentIndexRef.current = nextIndex;
-      setTimeLeft(60);
+      setTimeLeft(questionSeconds);
       setPhase("question");
       setAnswerStart(Date.now());
       await api.post(`/games/${code}/question/${nextIndex}`);
@@ -752,7 +810,7 @@ export default function GamePage() {
                   currentIndexRef.current = 0;
                   setSelectedAnswer(null);
                   setCorrectAnswer(null);
-                  setTimeLeft(60);
+                  setTimeLeft(questionSeconds);
                   setScore(0);
                   setCorrectCount(0);
                   setCommentary("");
@@ -808,7 +866,9 @@ export default function GamePage() {
     );
   }
 
-  const timerPercent = (timeLeft / 60) * 100;
+  // Scaled to the server's question duration, not a hardcoded 60 — otherwise
+  // changing QUESTION_SECONDS leaves the ring showing the wrong fraction.
+  const timerPercent = (timeLeft / Math.max(1, questionSeconds)) * 100;
   const timerColor = timeLeft > 10 ? C.accent : timeLeft > 5 ? C.accent2 : C.danger;
   const isCorrect = selectedAnswer === correctAnswer;
   // submitAnswer flips to the result phase immediately so the tiles lock, but
