@@ -9,6 +9,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 const LOAD_ERRORS: Record<string, string> = {
   game_load_failed: "The game couldn't load. It may have ended or the link expired.",
   removed_by_host: "The host removed you from the game.",
+  signin_unavailable: "Sign-in isn't set up yet. You can still host and play without an account.",
 };
 
 function LoadErrorBanner() {

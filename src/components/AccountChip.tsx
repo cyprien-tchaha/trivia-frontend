@@ -12,10 +12,16 @@ import { useAuth } from "@/lib/useAuth";
  * as being logged out.
  */
 export default function AccountChip() {
-  const { host, loading, signIn, signOut } = useAuth();
+  const { host, loading, signInAvailable, signIn, signOut } = useAuth();
   const [open, setOpen] = useState(false);
 
   if (loading) {
+    return <div style={{ height: "40px" }} aria-hidden />;
+  }
+
+  // Sign-in not configured on the API: show nothing rather than a button
+  // that redirects to an error. Anonymous hosting still works.
+  if (!host && !signInAvailable) {
     return <div style={{ height: "40px" }} aria-hidden />;
   }
 

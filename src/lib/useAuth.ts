@@ -23,13 +23,21 @@ const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000/api";
 export function useAuth() {
   const [host, setHost] = useState<Host | null>(null);
   const [loading, setLoading] = useState(true);
+  // Whether the API has Google credentials at all. Offering a sign-in button
+  // that cannot work means the host finds out by being redirected to an
+  // error, so the control hides itself instead.
+  const [signInAvailable, setSignInAvailable] = useState(false);
 
   const refresh = useCallback(async () => {
     try {
-      const { data } = await api.get("/auth/me");
-      setHost(data);
-    } catch {
-      setHost(null);
+      const [meResult, configResult] = await Promise.allSettled([
+        api.get("/auth/me"),
+        api.get("/auth/config"),
+      ]);
+      setHost(meResult.status === "fulfilled" ? meResult.value.data : null);
+      setSignInAvailable(
+        configResult.status === "fulfilled" && !!configResult.value.data?.google_enabled,
+      );
     } finally {
       setLoading(false);
     }
@@ -56,5 +64,5 @@ export function useAuth() {
     window.location.href = "/";
   }, []);
 
-  return { host, loading, signIn, signOut, refresh };
+  return { host, loading, signInAvailable, signIn, signOut, refresh };
 }
