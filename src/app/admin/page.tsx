@@ -31,18 +31,13 @@ export default function AdminPage() {
   const [autoRefresh, setAutoRefresh] = useState(false);
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
 
-  // Health check on mount
+  // Health check on mount. /health sits at the API root, not under /api, so
+  // the base URL's trailing /api has to come off — and only that one:
+  // "https://api.playfanatic.gg/api".replace("/api", "") eats the /api inside
+  // //api.playfanatic.gg and yields "https:/.playfanatic.gg/api", which 404s.
   useEffect(() => {
-    async function checkHealth() {
-      try {
-        const res = await api.get("/health".replace("/api", ""));
-        setHealth(res.data);
-      } catch {
-        setHealth({ status: "unreachable", environment: "unknown" });
-      }
-    }
-    // Hit health directly without /api prefix
-    fetch(`${process.env.NEXT_PUBLIC_API_URL?.replace("/api", "")}/health`)
+    const base = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000/api";
+    fetch(`${base.replace(/\/api\/?$/, "")}/health`)
       .then((r) => r.json())
       .then((d) => setHealth(d))
       .catch(() => setHealth({ status: "unreachable", environment: "unknown" }));
