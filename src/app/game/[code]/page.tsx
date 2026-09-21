@@ -811,6 +811,12 @@ export default function GamePage() {
   const timerPercent = (timeLeft / 60) * 100;
   const timerColor = timeLeft > 10 ? C.accent : timeLeft > 5 ? C.accent2 : C.danger;
   const isCorrect = selectedAnswer === correctAnswer;
+  // submitAnswer flips to the result phase immediately so the tiles lock, but
+  // correctAnswer only arrives with the server's response. In that gap
+  // isCorrect is `selected === null`, i.e. false, which rendered a full
+  // "Wrong!" for the length of the round trip before flipping to "Correct!".
+  // Nothing may assert an outcome until the answer is actually known.
+  const resultKnown = correctAnswer !== null && correctAnswer !== undefined;
   const circumference = 2 * Math.PI * 24;
 
   return (
@@ -885,7 +891,7 @@ export default function GamePage() {
               padding: "32px 28px",
               boxShadow: "0 8px 0 rgba(23,4,56,0.28), 0 16px 32px rgba(23,4,56,0.30)",
               animation:
-                phase === "result"
+                phase === "result" && resultKnown
                   ? `${isCorrect ? "pulseCorrect" : "pulseWrong"} 0.9s ease-out 1`
                   : undefined,
             }}
@@ -906,8 +912,8 @@ export default function GamePage() {
               // colour without it.
               const t = tile(i);
 
-              const isCorrectOpt = phase === "result" && option === correctAnswer;
-              const isChosenWrong = phase === "result" && option === selectedAnswer && option !== correctAnswer;
+              const isCorrectOpt = resultKnown && phase === "result" && option === correctAnswer;
+              const isChosenWrong = resultKnown && phase === "result" && option === selectedAnswer && option !== correctAnswer;
               const isChosen = option === selectedAnswer;
               const inResult = phase === "result";
               // In the result phase everything except the correct answer and
@@ -1050,17 +1056,18 @@ export default function GamePage() {
                     textAlign: "center",
                     // Opaque, not a translucent tint: the old wash let the
                     // magenta background through, and "Wrong!" in red on
-                    // magenta was close to unreadable.
-                    background: isCorrect ? "#12481F" : "#4A0D1C",
-                    border: `3px solid ${isCorrect ? "#2BD576" : "#FF5C78"}`,
+                    // magenta was close to unreadable. Neutral until the
+                    // server says which it is — see resultKnown.
+                    background: !resultKnown ? "#2E1065" : isCorrect ? "#12481F" : "#4A0D1C",
+                    border: `3px solid ${!resultKnown ? "rgba(255,255,255,0.28)" : isCorrect ? "#2BD576" : "#FF5C78"}`,
                     boxShadow: "0 8px 0 rgba(23,4,56,0.30), 0 14px 28px rgba(23,4,56,0.35)",
                   }}>
                     <p style={{
                       fontFamily: DISPLAY,
                       fontWeight: 900,
                       fontSize: "36px",
-                      // On the opaque panel above, both of these clear 7:1.
-                      color: isCorrect ? "#7BF5A8" : "#FF9FB0",
+                      // On the opaque panel above, all three clear 7:1.
+                      color: !resultKnown ? "#FFFFFF" : isCorrect ? "#7BF5A8" : "#FF9FB0",
                       marginBottom: "6px",
                       letterSpacing: "-0.02em",
                       animationName: "slamIn",
@@ -1068,9 +1075,9 @@ export default function GamePage() {
                       animationTimingFunction: "cubic-bezier(0.34, 1.56, 0.64, 1)",
                       animationFillMode: "both",
                     }}>
-                      {isCorrect ? "Correct!" : "Wrong!"}
+                      {!resultKnown ? "Locked in…" : isCorrect ? "Correct!" : "Wrong!"}
                     </p>
-                    {!isCorrect && (
+                    {resultKnown && !isCorrect && (
                       <p style={{ fontSize: "14px", color: "#F0DCE2", marginBottom: "8px" }}>
                         Answer: <span style={{ color: "#FFFFFF", fontWeight: 700 }}>{correctAnswer}</span>
                       </p>

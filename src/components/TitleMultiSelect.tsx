@@ -18,6 +18,15 @@ type Props = {
   category: TitleSearchCategory;
   selected: SelectedTitle[];
   onChange: (next: SelectedTitle[]) => void;
+  /**
+   * The raw text currently typed, reported on every keystroke.
+   *
+   * The picker is allowed to come back empty — the search proxy soft-fails by
+   * design — so the parent needs the typed text to fall back on. Without it a
+   * host who types a title and gets "No matches" submits a game with no topic
+   * at all and never finds out.
+   */
+  onQueryChange?: (q: string) => void;
   /** How many titles the host may pick. Defaults to 3. */
   maxSelected?: number;
   /** Optional custom placeholder for the empty input state. */
@@ -37,6 +46,7 @@ export default function TitleMultiSelect({
   category,
   selected,
   onChange,
+  onQueryChange,
   maxSelected = DEFAULT_MAX,
   placeholder,
 }: Props) {
@@ -66,6 +76,12 @@ export default function TitleMultiSelect({
     document.addEventListener("mousedown", onDown);
     return () => document.removeEventListener("mousedown", onDown);
   }, []);
+
+  // Report the typed text upward on every change, including the programmatic
+  // clears below, so the parent's fallback never goes stale.
+  useEffect(() => {
+    onQueryChange?.(query);
+  }, [query, onQueryChange]);
 
   // Debounced search. Resets results when query becomes too short.
   useEffect(() => {

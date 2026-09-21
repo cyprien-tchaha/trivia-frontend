@@ -35,6 +35,11 @@ function HostPageInner() {
   // Selected titles from the multi-select combo box. These get serialized
   // into the comma-separated `topics` string the backend already expects.
   const [selectedTitles, setSelectedTitles] = useState<SelectedTitle[]>([]);
+  // What the host typed into the picker without choosing a suggestion. The
+  // picker legitimately returns nothing when the upstream title search is
+  // down, and before this was wired up that meant the typed title was thrown
+  // away and the game silently became a whole-category game.
+  const [typedTitle, setTypedTitle] = useState("");
   const [gameCode, setGameCode] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
@@ -68,17 +73,22 @@ function HostPageInner() {
       // a prefill (and didn't pick anything), fall through the legacy free
       // text path so the existing AI validator can correct typos.
       let finalTopics = "";
+      // A picked suggestion wins. Failing that, anything the host typed into
+      // the picker counts — the title search can be down, and a host who
+      // typed "One Piece" means it whether or not a dropdown appeared. Both
+      // free-text paths go through validate-topics so typos still get fixed.
+      const freeText = typedTitle.trim() || prefillTopic.trim();
       if (selectedTitles.length > 0) {
         finalTopics = selectedTitles
           .map((t) => (t.year ? `${t.name} (${t.year})` : t.name))
           .join(", ");
-      } else if (prefillTopic.trim()) {
-        const validation = await api.post("/questions/validate-topics", { topics: prefillTopic.trim() });
+      } else if (freeText) {
+        const validation = await api.post("/questions/validate-topics", { topics: freeText });
         if (validation.data.unknown.length > 0) {
           setError(`Not found: ${validation.data.unknown.join(", ")}. Check the spelling.`);
           setLoading(false); return;
         }
-        finalTopics = validation.data.corrected || prefillTopic.trim();
+        finalTopics = validation.data.corrected || freeText;
       }
       const res = await api.post("/games/create", {
         host_name: hostName, category, difficulty,
@@ -201,6 +211,7 @@ function HostPageInner() {
                 category={category}
                 selected={selectedTitles}
                 onChange={setSelectedTitles}
+                onQueryChange={setTypedTitle}
                 placeholder={
                   category === "anime"
                     ? "e.g. One Piece, Naruto…"
