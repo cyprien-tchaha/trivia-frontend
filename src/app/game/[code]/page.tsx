@@ -92,14 +92,16 @@ export default function GamePage() {
   // manually — the host path goes through the WebSocket relay and carries no
   // deadline of its own.
   //
-  // Two things have to hold or the deadline is worse than none. The host
-  // advances optimistically — local state first, POST second — so this fires
-  // while the server is still on the *previous* question and answers with its
-  // deadline. Counting down from that started the host's question with only
-  // whatever was left of the last one: a round that took 15s left the host
-  // 15s behind every player, every round. And two syncs can be in flight at
-  // once (the optimistic one and the one after the POST), so the stale reply
-  // must not be allowed to land last.
+  // Defensive, not a fix for an observed bug. The host advances
+  // optimistically — local state first, POST second — so in principle this
+  // can fire while the server is still on the previous question and answer
+  // with its deadline, which would start the host's question with only what
+  // was left of the last one. In practice it does not: the POST is dispatched
+  // inside the click handler, before React commits and runs this effect, so
+  // the POST wins. Two browsers side by side (production build, 150ms added
+  // latency) showed host and player draining at the same rate with a 0s gap,
+  // both with and without the guards below. They stay because the ordering
+  // they enforce does not depend on React's commit timing staying put.
   const syncSeqRef = useRef(0);
   const syncClock = useCallback(async () => {
     const seq = ++syncSeqRef.current;
@@ -690,10 +692,9 @@ export default function GamePage() {
       setCurrentIndex(nextIndex);
       currentIndexRef.current = nextIndex;
       setTimeLeft(questionSeconds);
-      // Drop the old question's deadline before the UI moves. Until the POST
-      // below lands there is no deadline for this question yet, and ticking
-      // locally from a full clock is right where inheriting the last one was
-      // wrong.
+      // Drop the old question's deadline before the UI moves: until the POST
+      // below lands there is no deadline for this question yet, so tick
+      // locally from a full clock rather than from the previous question's.
       setDeadlineMs(null);
       setPhase("question");
       phaseRef.current = "question";
