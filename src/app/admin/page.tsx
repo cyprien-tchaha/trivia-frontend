@@ -2,13 +2,8 @@
 
 import { useState, useEffect } from "react";
 import api from "@/lib/api";
+import { BODY, C, DISPLAY } from "@/lib/theme";
 
-const C = {
-  bg: "#0a0a0f", surface: "#13131a", surface2: "#1c1c27",
-  border: "#2a2a3a", accent: "#00e5b0", accent2: "#f5a623",
-  danger: "#ff4d6d", text: "#f0f0f8", muted: "#6b6b8a",
-  success: "#00e5b0",
-};
 
 interface GameStatus {
   game: {
@@ -91,14 +86,14 @@ export default function AdminPage() {
 
   return (
     <main style={{
-      minHeight: "100vh", background: C.bg, padding: "24px",
-      fontFamily: "'DM Sans', sans-serif", color: C.text,
+      minHeight: "100vh", background: "transparent", padding: "24px",
+      fontFamily: BODY, color: C.text,
     }}>
       <div style={{ maxWidth: "640px", margin: "0 auto" }}>
 
         {/* Header */}
         <div style={{ marginBottom: "32px" }}>
-          <h1 style={{ fontFamily: "'Syne', sans-serif", fontSize: "28px", fontWeight: 800, marginBottom: "4px" }}>
+          <h1 style={{ fontFamily: DISPLAY, fontSize: "28px", fontWeight: 800, marginBottom: "4px" }}>
             <span style={{ color: C.accent }}>fan</span>atic admin
           </h1>
           <p style={{ color: C.muted, fontSize: "13px" }}>Beta monitoring dashboard</p>
@@ -140,7 +135,7 @@ export default function AdminPage() {
                 flex: 1, padding: "10px 14px",
                 background: C.surface2, border: `1px solid ${C.border}`,
                 borderRadius: "8px", color: C.text, fontSize: "15px",
-                fontFamily: "'DM Sans', sans-serif", outline: "none",
+                fontFamily: BODY, outline: "none",
                 letterSpacing: "0.1em",
               }}
             />
@@ -149,8 +144,8 @@ export default function AdminPage() {
               disabled={loading}
               style={{
                 padding: "10px 20px", borderRadius: "8px", fontSize: "14px",
-                fontWeight: 600, fontFamily: "'Syne', sans-serif",
-                background: C.accent, color: "#0a0a0f", border: "none",
+                fontWeight: 600, fontFamily: DISPLAY,
+                background: C.accent, color: "#2E1065", border: "none",
                 cursor: loading ? "not-allowed" : "pointer",
                 opacity: loading ? 0.6 : 1,
               }}
@@ -181,7 +176,7 @@ export default function AdminPage() {
                   background: autoRefresh ? "rgba(0,229,176,0.1)" : C.surface2,
                   border: `1px solid ${autoRefresh ? C.accent : C.border}`,
                   color: autoRefresh ? C.accent : C.muted,
-                  cursor: "pointer", fontFamily: "'DM Sans', sans-serif",
+                  cursor: "pointer", fontFamily: BODY,
                 }}
               >
                 {autoRefresh ? "⏸ Auto-refresh ON" : "▶ Auto-refresh OFF"}
@@ -207,7 +202,7 @@ export default function AdminPage() {
                     background: C.surface2, borderRadius: "8px", padding: "10px 12px",
                   }}>
                     <p style={{ fontSize: "11px", color: C.muted, marginBottom: "4px" }}>{item.label}</p>
-                    <p style={{ fontSize: "16px", fontWeight: 700, fontFamily: "'Syne', sans-serif", color: item.color || C.text }}>
+                    <p style={{ fontSize: "16px", fontWeight: 700, fontFamily: DISPLAY, color: item.color || C.text }}>
                       {item.value}
                     </p>
                   </div>
@@ -235,7 +230,7 @@ export default function AdminPage() {
                         padding: "10px 12px", borderRadius: "8px", background: C.surface2,
                       }}>
                         <span style={{
-                          fontFamily: "'Syne', sans-serif", fontWeight: 700,
+                          fontFamily: DISPLAY, fontWeight: 700,
                           fontSize: "13px", color: i === 0 ? C.accent2 : C.muted,
                           width: "20px",
                         }}>#{i + 1}</span>
@@ -247,7 +242,7 @@ export default function AdminPage() {
                         }}>{p.name[0].toUpperCase()}</div>
                         <span style={{ flex: 1, fontSize: "14px" }}>{p.name}</span>
                         <span style={{
-                          fontFamily: "'Syne', sans-serif", fontWeight: 700,
+                          fontFamily: DISPLAY, fontWeight: 700,
                           fontSize: "14px", color: C.accent,
                         }}>{p.score} pts</span>
                       </div>

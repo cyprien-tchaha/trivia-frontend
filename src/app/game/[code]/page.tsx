@@ -7,12 +7,8 @@ import api from "@/lib/api";
 import { gameSocket } from "@/lib/socket";
 import { useGameStore } from "@/store/gameStore";
 import { Question, Player } from "@/types";
+import { BODY, C, DISPLAY, tile } from "@/lib/theme";
 
-const C = {
-  bg: "#0a0a14", surface: "#13131a", surface2: "#1c1c27",
-  border: "#2a2a3a", accent: "#00e5b0", accent2: "#f5a623",
-  danger: "#ff4d6d", text: "#f0f0f8", muted: "#6b6b8a",
-};
 
 type FloatingReaction = { id: number; emoji: string; x: number };
 
@@ -44,7 +40,7 @@ function ReportButton({ questionId, code }: { questionId?: string; code: string 
         fontSize: "12px",
         color: reported ? C.muted : "rgba(255,77,109,0.7)",
         cursor: reported ? "default" : "pointer",
-        fontFamily: "'DM Sans', sans-serif",
+        fontFamily: BODY,
         transition: "all 0.15s ease",
       }}
     >
@@ -610,18 +606,18 @@ export default function GamePage() {
   }
 
   if (resetting) return (
-    <main style={{ minHeight: "100vh", background: C.bg, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: "16px" }}>
+    <main style={{ minHeight: "100vh", background: "transparent", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: "16px" }}>
       <svg className="spin" width="32" height="32" viewBox="0 0 24 24" fill="none">
         <circle cx="12" cy="12" r="10" stroke={C.border} strokeWidth="3" />
         <path d="M12 2a10 10 0 0 1 10 10" stroke={C.accent} strokeWidth="3" strokeLinecap="round" />
       </svg>
-      <p style={{ fontFamily: "'Syne', sans-serif", fontWeight: 700, fontSize: "16px" }}>New round loading...</p>
+      <p style={{ fontFamily: DISPLAY, fontWeight: 700, fontSize: "16px" }}>New round loading...</p>
       <p style={{ color: C.muted, fontSize: "13px" }}>AI is generating fresh questions</p>
     </main>
   );
 
   if (loading) return (
-    <main style={{ minHeight: "100vh", background: C.bg, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: "16px" }}>
+    <main style={{ minHeight: "100vh", background: "transparent", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: "16px" }}>
       <svg className="spin" width="32" height="32" viewBox="0 0 24 24" fill="none">
         <circle cx="12" cy="12" r="10" stroke={C.border} strokeWidth="3" />
         <path d="M12 2a10 10 0 0 1 10 10" stroke={C.accent} strokeWidth="3" strokeLinecap="round" />
@@ -631,11 +627,11 @@ export default function GamePage() {
   );
 
   if (questions.length === 0) return (
-    <main style={{ minHeight: "100vh", background: C.bg, display: "flex", alignItems: "center", justifyContent: "center", padding: "24px" }}>
+    <main style={{ minHeight: "100vh", background: "transparent", display: "flex", alignItems: "center", justifyContent: "center", padding: "24px" }}>
       <div style={{ textAlign: "center" }}>
-        <p style={{ fontFamily: "'Syne', sans-serif", fontSize: "20px", fontWeight: 700, marginBottom: "8px" }}>No questions found</p>
+        <p style={{ fontFamily: DISPLAY, fontSize: "20px", fontWeight: 700, marginBottom: "8px" }}>No questions found</p>
         <p style={{ color: C.muted, fontSize: "14px", marginBottom: "24px" }}>Something went wrong generating questions.</p>
-        <Link href="/" style={{ padding: "12px 24px", background: C.accent, color: "#0a0a0f", borderRadius: "10px", textDecoration: "none", fontWeight: 700, fontFamily: "'Syne', sans-serif" }}>Go Home</Link>
+        <Link href="/" style={{ padding: "12px 24px", background: C.accent, color: "#2E1065", borderRadius: "10px", textDecoration: "none", fontWeight: 700, fontFamily: DISPLAY }}>Go Home</Link>
       </div>
     </main>
   );
@@ -650,7 +646,7 @@ export default function GamePage() {
 
     // Generate confetti particles. Random positions, colors, sizes, delays.
     // 40 is enough to feel celebratory without lagging mobile devices.
-    const confettiColors = ["#ff5d73", "#4d8cff", "#b66dff", "#ffb84d", "#00e5b0", "#f5a623"];
+    const confettiColors = ["#ff5d73", "#4d8cff", "#b66dff", "#ffb84d", "#FFC21E", "#FF8A3D"];
     const confetti = Array.from({ length: 40 }).map((_, i) => ({
       id: i,
       left: Math.random() * 100,
@@ -661,7 +657,7 @@ export default function GamePage() {
     }));
 
     return (
-      <main style={{ minHeight: "100vh", background: C.bg, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: "24px", fontFamily: "'DM Sans', sans-serif", position: "relative", overflow: "hidden" }}>
+      <main style={{ minHeight: "100vh", background: "transparent", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: "24px", fontFamily: BODY, position: "relative", overflow: "hidden" }}>
         {/* Confetti layer — pointer-events:none so it doesn't intercept clicks
             on the buttons below. */}
         <div style={{ position: "fixed", inset: 0, pointerEvents: "none", overflow: "hidden", zIndex: 1 }}>
@@ -691,8 +687,8 @@ export default function GamePage() {
           }}>
             <div style={{ fontSize: "64px", marginBottom: "10px" }}>🏆</div>
             <p style={{ fontSize: "12px", letterSpacing: "0.18em", textTransform: "uppercase", color: C.accent, marginBottom: "6px", fontWeight: 700 }}>Winner</p>
-            <h1 style={{ fontFamily: "'Syne', sans-serif", fontSize: "44px", fontWeight: 900, marginBottom: "4px", letterSpacing: "-0.02em" }}>{sorted[0]?.name}</h1>
-            <p style={{ color: C.accent2, fontFamily: "'Syne', sans-serif", fontWeight: 800, fontSize: "24px", marginBottom: "2px" }}>{sorted[0]?.score} pts</p>
+            <h1 style={{ fontFamily: DISPLAY, fontSize: "44px", fontWeight: 900, marginBottom: "4px", letterSpacing: "-0.02em" }}>{sorted[0]?.name}</h1>
+            <p style={{ color: C.accent2, fontFamily: DISPLAY, fontWeight: 800, fontSize: "24px", marginBottom: "2px" }}>{sorted[0]?.score} pts</p>
             {sorted.length === 1 && (
               <p style={{ fontSize: "12px", color: C.muted, marginTop: "4px" }}>Solo game</p>
             )}
@@ -705,17 +701,17 @@ export default function GamePage() {
               animation: "fadeUp 0.6s ease 0.4s both",
             }}>
               <div style={{ textAlign: "center" }}>
-                <p style={{ fontSize: "22px", fontWeight: 700, fontFamily: "'Syne', sans-serif", color: C.accent }}>{myPlayer.score}</p>
+                <p style={{ fontSize: "22px", fontWeight: 700, fontFamily: DISPLAY, color: C.accent }}>{myPlayer.score}</p>
                 <p style={{ fontSize: "11px", color: C.muted, marginTop: "2px" }}>points</p>
               </div>
               <div style={{ width: "1px", height: "36px", background: C.border }} />
               <div style={{ textAlign: "center" }}>
-                <p style={{ fontSize: "22px", fontWeight: 700, fontFamily: "'Syne', sans-serif", color: C.accent }}>{correctCount}/{questions.length}</p>
+                <p style={{ fontSize: "22px", fontWeight: 700, fontFamily: DISPLAY, color: C.accent }}>{correctCount}/{questions.length}</p>
                 <p style={{ fontSize: "11px", color: C.muted, marginTop: "2px" }}>correct</p>
               </div>
               <div style={{ width: "1px", height: "36px", background: C.border }} />
               <div style={{ textAlign: "center" }}>
-                <p style={{ fontSize: "22px", fontWeight: 700, fontFamily: "'Syne', sans-serif", color: myRank === 1 ? C.accent2 : C.text }}>#{myRank}</p>
+                <p style={{ fontSize: "22px", fontWeight: 700, fontFamily: DISPLAY, color: myRank === 1 ? C.accent2 : C.text }}>#{myRank}</p>
                 <p style={{ fontSize: "11px", color: C.muted, marginTop: "2px" }}>ranking</p>
               </div>
             </div>
@@ -733,10 +729,10 @@ export default function GamePage() {
                 animation: `fadeUp 0.5s ease ${0.6 + i * 0.1}s both`,
               }}>
                 <span style={{ fontSize: "22px", width: "28px", textAlign: "center" }}>
-                  {i < 3 ? medals[i] : <span style={{ fontFamily: "'Syne', sans-serif", fontWeight: 700, color: C.muted, fontSize: "14px" }}>{i + 1}</span>}
+                  {i < 3 ? medals[i] : <span style={{ fontFamily: DISPLAY, fontWeight: 700, color: C.muted, fontSize: "14px" }}>{i + 1}</span>}
                 </span>
                 <span style={{ flex: 1, fontWeight: 500 }}>{p.name}</span>
-                <span style={{ fontFamily: "'Syne', sans-serif", fontWeight: 700, color: i === 0 ? C.accent2 : C.text }}>
+                <span style={{ fontFamily: DISPLAY, fontWeight: 700, color: i === 0 ? C.accent2 : C.text }}>
                   {p.score} <span style={{ fontSize: "12px", fontWeight: 400, color: C.muted }}>pts</span>
                 </span>
               </div>
@@ -778,13 +774,14 @@ export default function GamePage() {
                 } catch (e) { console.error("Reset failed", e); }
               }} style={{
                 width: "100%", padding: "16px", borderRadius: "12px",
-                fontSize: "15px", fontWeight: 700, fontFamily: "'Syne', sans-serif",
-                border: "none", background: C.accent, color: "#0a0a0f", cursor: "pointer",
+                fontSize: "15px", fontWeight: 700, fontFamily: DISPLAY,
+                border: "none", background: C.accent, color: "#3B1A00", cursor: "pointer",
+                boxShadow: "0 6px 0 #C48A00", ["--btn-edge" as string]: "#C48A00",
               }}>Play Again — Same Players</button>
               <Link href="/" style={{
                 display: "block", width: "100%", padding: "14px", textAlign: "center",
                 color: C.muted, borderRadius: "12px", textDecoration: "none",
-                fontFamily: "'Syne', sans-serif", fontWeight: 600, fontSize: "14px",
+                fontFamily: DISPLAY, fontWeight: 600, fontSize: "14px",
                 border: `1px solid ${C.border}`,
               }}>New Game</Link>
             </div>
@@ -801,7 +798,7 @@ export default function GamePage() {
               <Link href="/" style={{
                 display: "inline-block", padding: "12px 24px",
                 background: C.surface, color: C.muted, borderRadius: "10px",
-                textDecoration: "none", fontFamily: "'Syne', sans-serif",
+                textDecoration: "none", fontFamily: DISPLAY,
                 fontWeight: 700, fontSize: "14px", border: `1px solid ${C.border}`,
               }}>Leave Game</Link>
             </div>
@@ -817,7 +814,7 @@ export default function GamePage() {
   const circumference = 2 * Math.PI * 24;
 
   return (
-    <main style={{ minHeight: "100vh", background: C.bg, display: "flex", flexDirection: "column", padding: "16px", maxWidth: "640px", margin: "0 auto", fontFamily: "'DM Sans', sans-serif", position: "relative", overflow: "visible" }}>
+    <main style={{ minHeight: "100vh", background: "transparent", display: "flex", flexDirection: "column", padding: "16px", maxWidth: "640px", margin: "0 auto", fontFamily: BODY, position: "relative", overflow: "visible" }}>
 
       {reactions.map((r) => (
         <div key={r.id} style={{
@@ -839,7 +836,7 @@ export default function GamePage() {
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", paddingTop: "16px", marginBottom: "16px" }}>
         <div>
           <p style={{ fontSize: "10px", letterSpacing: "0.12em", textTransform: "uppercase", color: C.muted }}>Question</p>
-          <p style={{ fontFamily: "'Syne', sans-serif", fontWeight: 700, fontSize: "20px" }}>
+          <p style={{ fontFamily: DISPLAY, fontWeight: 700, fontSize: "20px" }}>
             {currentIndex + 1}<span style={{ color: C.muted, fontWeight: 400, fontSize: "14px" }}>/{questions.length}</span>
           </p>
         </div>
@@ -860,12 +857,12 @@ export default function GamePage() {
             />
           </svg>
           <div style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center" }}>
-            <span style={{ fontFamily: "'Syne', sans-serif", fontWeight: 700, fontSize: "16px", color: timerColor }}>{timeLeft}</span>
+            <span style={{ fontFamily: DISPLAY, fontWeight: 700, fontSize: "16px", color: timerColor }}>{timeLeft}</span>
           </div>
         </div>
         <div style={{ textAlign: "right" }}>
           <p style={{ fontSize: "10px", letterSpacing: "0.12em", textTransform: "uppercase", color: C.muted }}>Score</p>
-          <p style={{ fontFamily: "'Syne', sans-serif", fontWeight: 700, fontSize: "20px", color: C.accent }}>
+          <p style={{ fontFamily: DISPLAY, fontWeight: 700, fontSize: "20px", color: C.accent }}>
             {score} <span style={{ fontSize: "12px", color: C.muted, fontWeight: 400 }}>pts</span>
           </p>
         </div>
@@ -879,124 +876,118 @@ export default function GamePage() {
           <div
             key={`qcard-${currentIndex}-${phase}`}
             style={{
-              background: "linear-gradient(180deg, #1a1a2e 0%, #15151f 100%)",
-              border: `1px solid ${C.border}`,
-              borderRadius: "16px",
-              padding: "28px 24px",
-              boxShadow: "0 8px 24px rgba(0,0,0,0.4)",
+              // White card: the question is the thing everyone in the room is
+              // reading off a shared screen, so it gets the highest contrast
+              // surface on the page rather than the darkest.
+              background: "#FFFFFF",
+              border: "none",
+              borderRadius: "22px",
+              padding: "32px 28px",
+              boxShadow: "0 8px 0 rgba(23,4,56,0.28), 0 16px 32px rgba(23,4,56,0.30)",
               animation:
                 phase === "result"
                   ? `${isCorrect ? "pulseCorrect" : "pulseWrong"} 0.9s ease-out 1`
                   : undefined,
             }}
           >
-            <p style={{ fontSize: "19px", fontWeight: 600, lineHeight: 1.45, textAlign: "center" }}>
+            <p style={{
+              fontSize: "22px", fontWeight: 600, lineHeight: 1.4, textAlign: "center",
+              fontFamily: DISPLAY, color: "#1B0B3B",
+            }}>
               {currentQuestion.text}
             </p>
           </div>
 
           <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
             {currentQuestion.options?.map((option: string, i: number) => {
-              const letter = String.fromCharCode(65 + i); // A, B, C, D
+              // Per-position identity: each slot owns a colour AND a shape.
+              // The shape carries the identity for players who can't separate
+              // red from green, so it is not decoration — never ship the
+              // colour without it.
+              const t = tile(i);
 
-              // Per-state visual config. Unified dark base across all four
-              // slots — no per-position hue identity. Result state uses
-              // green for the correct answer and red for the chosen-wrong;
-              // unchosen incorrect options fade.
               const isCorrectOpt = phase === "result" && option === correctAnswer;
               const isChosenWrong = phase === "result" && option === selectedAnswer && option !== correctAnswer;
               const isChosen = option === selectedAnswer;
               const inResult = phase === "result";
+              // In the result phase everything except the correct answer and
+              // the player's own wrong pick recedes, so the eye lands on the
+              // outcome instead of re-reading all four.
+              const dimmed = inResult && !isCorrectOpt && !isChosenWrong;
 
-              // Default: dark slate gradient with a soft inner top-edge
-              // highlight that gives the button physical "press me" depth.
-              let bgGradient = "linear-gradient(180deg, #232838 0%, #1a1d2a 100%)";
-              let borderColor = "rgba(255,255,255,0.08)";
-              let textColor = C.text;
-              let opacity = 1;
-              let shadow = "0 4px 12px rgba(0,0,0,0.35), inset 0 1px 0 rgba(255,255,255,0.08)";
-              let badgeBg = "rgba(255,255,255,0.06)";
-              let badgeColor = C.muted;
-
-              if (isCorrectOpt) {
-                // Correct answer reveal: green-tinted gradient + green glow.
-                bgGradient = "linear-gradient(180deg, #1b3d35 0%, #163029 100%)";
-                borderColor = C.accent;
-                textColor = "#ffffff";
-                shadow = `0 0 0 2px ${C.accent}, 0 8px 22px rgba(0,229,176,0.35), inset 0 1px 0 rgba(255,255,255,0.12)`;
-                badgeBg = C.accent;
-                badgeColor = "#0a0a14";
+              // During the question, colour means POSITION (each slot owns
+              // its hue). Once the answer resolves, colour switches to mean
+              // OUTCOME — green is right, red is your wrong pick — because
+              // that is the thing players need to read instantly. The shape
+              // glyph never changes, so position identity survives the
+              // switch and colour-blind players keep their reference.
+              let face: string = t.color, edge: string = t.shadow, ink: string = t.text;
+              if (dimmed) {
+                face = "#4A3A6B"; edge = "#2E2347"; ink = "#FFFFFF";
+              } else if (isCorrectOpt) {
+                face = "#1D7A08"; edge = "#135405"; ink = "#FFFFFF";
               } else if (isChosenWrong) {
-                // The wrong pick the player made: red-tinted + red glow.
-                bgGradient = "linear-gradient(180deg, #3d1d28 0%, #2a1620 100%)";
-                borderColor = C.danger;
-                textColor = "#ffffff";
-                shadow = `0 0 0 2px ${C.danger}, 0 6px 18px rgba(255,77,109,0.3), inset 0 1px 0 rgba(255,255,255,0.08)`;
-                badgeBg = C.danger;
-                badgeColor = "#ffffff";
-              } else if (inResult) {
-                // Unchosen incorrect options: faded.
-                opacity = 0.45;
-                shadow = "0 2px 6px rgba(0,0,0,0.25)";
-              } else if (isChosen) {
-                // Question phase, the option this player picked but hasn't
-                // submitted yet: teal accent ring (the "two-tone" hover).
-                borderColor = C.accent;
-                shadow = `0 0 0 2px ${C.accent}, 0 8px 20px rgba(0,229,176,0.2), inset 0 1px 0 rgba(255,255,255,0.12)`;
-                badgeBg = C.accent;
-                badgeColor = "#0a0a14";
+                face = "#E21B3C"; edge = "#A5122B"; ink = "#FFFFFF";
               }
+
+              // A white ring reads against every face colour; a coloured one
+              // would vanish into the green/red it is meant to emphasise.
+              let ring = "none";
+              if (isCorrectOpt || isChosenWrong) ring = "0 0 0 4px rgba(255,255,255,0.92)";
+              else if (isChosen && !inResult) ring = `0 0 0 4px ${C.accent}`;
 
               const style: React.CSSProperties = {
                 width: "100%",
                 padding: "16px 18px",
-                minHeight: "64px",
-                borderRadius: "16px",
+                minHeight: "72px",
+                borderRadius: "18px",
                 textAlign: "left",
-                background: bgGradient,
-                border: `1.5px solid ${borderColor}`,
-                color: textColor,
-                opacity,
-                fontSize: "16px",
+                background: face,
+                border: "none",
+                color: ink,
+                opacity: dimmed ? 0.55 : 1,
+                fontSize: "17px",
                 fontWeight: 600,
-                fontFamily: "'DM Sans', sans-serif",
+                fontFamily: DISPLAY,
                 cursor: isHost || selectedAnswer || inResult ? "default" : "pointer",
-                transition: "all 0.18s ease",
+                transition: "opacity 0.2s ease, box-shadow 0.2s ease, transform 0.08s ease",
                 display: "flex",
                 alignItems: "center",
                 gap: "14px",
-                boxShadow: shadow,
+                boxShadow: `${ring === "none" ? "" : ring + ", "}0 6px 0 ${edge}, 0 10px 20px rgba(23,4,56,0.35)`,
                 letterSpacing: "0.01em",
+                transform: isCorrectOpt ? "scale(1.02)" : "scale(1)",
               };
 
-              // Letter badge on the left — adds option identity without
-              // using color per-position. Also helps with verbal call-outs
-              // ("I picked B"), which is a small party-game affordance.
+              // The shape glyph doubles as the result marker, so the tile
+              // never loses its identity slot.
               const badge = (
                 <span
                   aria-hidden
                   style={{
-                    width: "34px",
-                    height: "34px",
-                    borderRadius: "10px",
+                    width: "38px",
+                    height: "38px",
+                    borderRadius: "12px",
                     display: "inline-flex",
                     alignItems: "center",
                     justifyContent: "center",
-                    background: badgeBg,
-                    color: badgeColor,
-                    fontFamily: "'Syne', sans-serif",
-                    fontWeight: 800,
-                    fontSize: "15px",
+                    background: "rgba(0,0,0,0.20)",
+                    color: ink,
+                    fontWeight: 700,
+                    fontSize: "17px",
                     flexShrink: 0,
-                    transition: "all 0.18s ease",
                   }}
                 >
-                  {isCorrectOpt ? "✓" : isChosenWrong ? "✗" : letter}
+                  {isCorrectOpt ? "✓" : isChosenWrong ? "✗" : t.glyph}
                 </span>
               );
 
+              // Screen readers get the shape name, which is how players
+              // actually refer to the options out loud.
+              const label = `${t.name}: ${option}`;
+
               return isHost ? (
-                <div key={option} style={style}>
+                <div key={option} style={style} className="pop-in" aria-label={label}>
                   {badge}
                   <span style={{ flex: 1 }}>{option}</span>
                 </div>
@@ -1005,20 +996,10 @@ export default function GamePage() {
                   key={option}
                   onClick={() => selectAnswer(option)}
                   disabled={inResult}
-                  style={style}
-                  onMouseEnter={(e) => {
-                    // Subtle lift on hover for the unselected, in-question state.
-                    if (!isChosen && !inResult) {
-                      e.currentTarget.style.borderColor = "rgba(0,229,176,0.45)";
-                      e.currentTarget.style.transform = "translateY(-1px)";
-                    }
-                  }}
-                  onMouseLeave={(e) => {
-                    if (!isChosen && !inResult) {
-                      e.currentTarget.style.borderColor = "rgba(255,255,255,0.08)";
-                      e.currentTarget.style.transform = "translateY(0)";
-                    }
-                  }}
+                  style={{ ...style, ["--btn-edge" as string]: edge }}
+                  className="btn-3d pop-in"
+                  data-keep-color={inResult ? "" : undefined}
+                  aria-label={label}
                 >
                   {badge}
                   <span style={{ flex: 1 }}>{option}</span>
@@ -1030,8 +1011,9 @@ export default function GamePage() {
           {phase === "question" && !isHost && selectedAnswer && (
             <button onClick={submitAnswer} style={{
               width: "100%", padding: "14px", borderRadius: "12px",
-              fontSize: "15px", fontWeight: 700, fontFamily: "'Syne', sans-serif",
-              border: "none", background: C.accent, color: "#0a0a0f", cursor: "pointer",
+              fontSize: "15px", fontWeight: 700, fontFamily: DISPLAY,
+              border: "none", background: C.accent, color: "#3B1A00", cursor: "pointer",
+                boxShadow: "0 6px 0 #C48A00", ["--btn-edge" as string]: "#C48A00",
             }}>Lock In Answer →</button>
           )}
 
@@ -1063,22 +1045,22 @@ export default function GamePage() {
               ) : (
                 <>
                   <div style={{
-                    padding: "20px 16px",
-                    borderRadius: "16px",
+                    padding: "24px 16px",
+                    borderRadius: "22px",
                     textAlign: "center",
-                    background: isCorrect
-                      ? "linear-gradient(180deg, rgba(0,229,176,0.18), rgba(0,229,176,0.08))"
-                      : "linear-gradient(180deg, rgba(255,77,109,0.18), rgba(255,77,109,0.08))",
-                    border: `2px solid ${isCorrect ? "rgba(0,229,176,0.5)" : "rgba(255,77,109,0.5)"}`,
-                    boxShadow: isCorrect
-                      ? "0 6px 24px rgba(0,229,176,0.15)"
-                      : "0 6px 24px rgba(255,77,109,0.15)",
+                    // Opaque, not a translucent tint: the old wash let the
+                    // magenta background through, and "Wrong!" in red on
+                    // magenta was close to unreadable.
+                    background: isCorrect ? "#12481F" : "#4A0D1C",
+                    border: `3px solid ${isCorrect ? "#2BD576" : "#FF5C78"}`,
+                    boxShadow: "0 8px 0 rgba(23,4,56,0.30), 0 14px 28px rgba(23,4,56,0.35)",
                   }}>
                     <p style={{
-                      fontFamily: "'Syne', sans-serif",
+                      fontFamily: DISPLAY,
                       fontWeight: 900,
                       fontSize: "36px",
-                      color: isCorrect ? C.accent : C.danger,
+                      // On the opaque panel above, both of these clear 7:1.
+                      color: isCorrect ? "#7BF5A8" : "#FF9FB0",
                       marginBottom: "6px",
                       letterSpacing: "-0.02em",
                       animationName: "slamIn",
@@ -1089,8 +1071,8 @@ export default function GamePage() {
                       {isCorrect ? "Correct!" : "Wrong!"}
                     </p>
                     {!isCorrect && (
-                      <p style={{ fontSize: "14px", color: C.muted, marginBottom: "8px" }}>
-                        Answer: <span style={{ color: C.accent, fontWeight: 700 }}>{correctAnswer}</span>
+                      <p style={{ fontSize: "14px", color: "#F0DCE2", marginBottom: "8px" }}>
+                        Answer: <span style={{ color: "#FFFFFF", fontWeight: 700 }}>{correctAnswer}</span>
                       </p>
                     )}
                     <p style={{
@@ -1103,7 +1085,7 @@ export default function GamePage() {
                       Score
                     </p>
                     <p style={{
-                      fontFamily: "'Syne', sans-serif",
+                      fontFamily: DISPLAY,
                       fontWeight: 800,
                       fontSize: "32px",
                       color: C.text,
@@ -1126,8 +1108,9 @@ export default function GamePage() {
               {isHost && (
                 <button onClick={nextQuestion} style={{
                   width: "100%", padding: "16px", borderRadius: "12px", fontSize: "15px", fontWeight: 700,
-                  fontFamily: "'Syne', sans-serif", border: "none",
-                  background: C.accent, color: "#0a0a0f", cursor: "pointer",
+                  fontFamily: DISPLAY, border: "none",
+                  background: C.accent, color: "#3B1A00", cursor: "pointer",
+                  boxShadow: "0 5px 0 #C48A00", ["--btn-edge" as string]: "#C48A00",
                 }}>
                   {currentIndex + 1 >= questions.length ? "See Results" : "Next Question →"}
                 </button>
@@ -1147,17 +1130,17 @@ export default function GamePage() {
               <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
                 {[...players].sort((a, b) => b.score - a.score).slice(0, 5).map((p, i) => (
                   <div key={p.id} style={{ display: "flex", alignItems: "center", gap: "10px" }}>
-                    <span style={{ width: "16px", fontSize: "12px", textAlign: "center", fontFamily: "'Syne', sans-serif", fontWeight: 700, color: i === 0 ? C.accent2 : C.muted }}>{i + 1}</span>
+                    <span style={{ width: "16px", fontSize: "12px", textAlign: "center", fontFamily: DISPLAY, fontWeight: 700, color: i === 0 ? C.accent2 : C.muted }}>{i + 1}</span>
                     <div style={{
                       width: "24px", height: "24px", borderRadius: "50%",
                       display: "flex", alignItems: "center", justifyContent: "center",
-                      fontSize: "11px", fontWeight: 700, fontFamily: "'Syne', sans-serif",
+                      fontSize: "11px", fontWeight: 700, fontFamily: DISPLAY,
                       background: p.id === playerId ? "rgba(0,229,176,0.15)" : C.surface2,
                       color: p.id === playerId ? C.accent : C.muted,
                       border: `1px solid ${p.id === playerId ? "rgba(0,229,176,0.3)" : C.border}`,
                     }}>{p.name[0].toUpperCase()}</div>
                     <span style={{ flex: 1, fontSize: "14px", color: p.id === playerId ? C.accent : C.text, fontWeight: p.id === playerId ? 600 : 400 }}>{p.name}</span>
-                    <span style={{ fontFamily: "'Syne', sans-serif", fontWeight: 700, fontSize: "14px" }}>{p.score}</span>
+                    <span style={{ fontFamily: DISPLAY, fontWeight: 700, fontSize: "14px" }}>{p.score}</span>
                   </div>
                 ))}
               </div>

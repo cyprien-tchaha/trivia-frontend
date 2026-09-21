@@ -2,12 +2,8 @@
 
 import { useEffect, useRef, useState, useCallback } from "react";
 import api from "@/lib/api";
+import { BODY, C } from "@/lib/theme";
 
-const C = {
-  surface: "#13131a", surface2: "#1c1c27",
-  border: "#2a2a3a", accent: "#00e5b0",
-  danger: "#ff4d6d", text: "#f0f0f8", muted: "#6b6b8a",
-};
 
 export type TitleSearchCategory = "anime" | "tv_shows" | "movies";
 
@@ -183,7 +179,7 @@ export default function TitleMultiSelect({
               background: "rgba(0,229,176,0.1)",
               border: "1px solid rgba(0,229,176,0.3)",
               color: C.text, fontSize: "13px",
-              fontFamily: "'DM Sans', sans-serif",
+              fontFamily: BODY,
             }}
           >
             {s.name}
@@ -221,7 +217,7 @@ export default function TitleMultiSelect({
               flex: "1 0 140px", minWidth: 0,
               background: "transparent", border: "none", outline: "none",
               color: C.text, fontSize: "14px",
-              fontFamily: "'DM Sans', sans-serif",
+              fontFamily: BODY,
               padding: "4px 2px",
             }}
           />

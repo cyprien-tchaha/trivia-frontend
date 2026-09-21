@@ -7,15 +7,11 @@ import api from "@/lib/api";
 import { gameSocket } from "@/lib/socket";
 import { useGameStore } from "@/store/gameStore";
 import { Player } from "@/types";
+import { BODY, C, DISPLAY } from "@/lib/theme";
 
-const C = {
-  bg: "#0a0a0f", surface: "#13131a", surface2: "#1c1c27",
-  border: "#2a2a3a", accent: "#00e5b0", accent2: "#f5a623",
-  danger: "#ff4d6d", text: "#f0f0f8", muted: "#6b6b8a",
-};
 
 const difficultyLabel = ["", "Easy", "Medium", "Hard", "Expert", "Master"];
-const difficultyColor = ["", "#00e5b0", "#6ee7b7", "#f5a623", "#f97316", "#ff4d6d"];
+const difficultyColor = ["", "#FFC21E", "#6ee7b7", "#FF8A3D", "#f97316", "#FF3B5C"];
 
 const FACTS = [
   "The average person blinks 15–20 times per minute 👁️",
@@ -230,13 +226,13 @@ export default function JoinWithCodePage() {
   if (step === "name") {
     return (
       <main style={{
-        minHeight: "100vh", background: C.bg, display: "flex",
+        minHeight: "100vh", background: "transparent", display: "flex",
         flexDirection: "column", alignItems: "center", justifyContent: "center",
-        padding: "24px", fontFamily: "'DM Sans', sans-serif",
+        padding: "24px", fontFamily: BODY,
       }}>
         <div style={{ width: "100%", maxWidth: "440px" }}>
           <div style={{ textAlign: "center", marginBottom: "32px" }}>
-            <h1 style={{ fontFamily: "'Syne', sans-serif", fontSize: "36px", fontWeight: 800, marginBottom: "4px" }}>
+            <h1 style={{ fontFamily: DISPLAY, fontSize: "36px", fontWeight: 800, marginBottom: "4px" }}>
               <span style={{ color: C.accent }}>fan</span><span style={{ color: C.text }}>atic</span>
             </h1>
             <div style={{
@@ -273,15 +269,15 @@ export default function JoinWithCodePage() {
                   width: "100%", padding: "14px 16px",
                   background: C.surface2, border: `1px solid ${C.border}`,
                   borderRadius: "10px", color: C.text, fontSize: "16px",
-                  fontFamily: "'DM Sans', sans-serif", outline: "none",
+                  fontFamily: BODY, outline: "none",
                 }}
               />
             </div>
             <button onClick={joinGame} disabled={loading} style={{
               width: "100%", padding: "16px", borderRadius: "12px",
-              fontSize: "15px", fontWeight: 700, fontFamily: "'Syne', sans-serif",
+              fontSize: "15px", fontWeight: 700, fontFamily: DISPLAY,
               border: "none", background: loading ? "rgba(0,229,176,0.4)" : C.accent,
-              color: "#0a0a0f", cursor: loading ? "not-allowed" : "pointer",
+              color: "#2E1065", cursor: loading ? "not-allowed" : "pointer",
             }}>
               {loading ? "Joining..." : `Join Game →`}
             </button>
@@ -293,9 +289,9 @@ export default function JoinWithCodePage() {
 
   return (
     <main style={{
-      minHeight: "100vh", background: C.bg, display: "flex",
+      minHeight: "100vh", background: "transparent", display: "flex",
       flexDirection: "column", alignItems: "center", justifyContent: "center",
-      padding: "24px", fontFamily: "'DM Sans', sans-serif",
+      padding: "24px", fontFamily: BODY,
     }}>
       <div style={{ width: "100%", maxWidth: "440px" }}>
         <div style={{ textAlign: "center", marginBottom: "32px" }}>
@@ -303,11 +299,11 @@ export default function JoinWithCodePage() {
             width: "72px", height: "72px", borderRadius: "50%",
             display: "flex", alignItems: "center", justifyContent: "center",
             margin: "0 auto 12px",
-            fontFamily: "'Syne', sans-serif", fontWeight: 800, fontSize: "28px",
+            fontFamily: DISPLAY, fontWeight: 800, fontSize: "28px",
             background: "rgba(0,229,176,0.1)", color: C.accent,
             border: "2px solid rgba(0,229,176,0.3)",
           }}>{playerName[0]?.toUpperCase()}</div>
-          <h2 style={{ fontFamily: "'Syne', sans-serif", fontWeight: 700, fontSize: "22px" }}>{playerName}</h2>
+          <h2 style={{ fontFamily: DISPLAY, fontWeight: 700, fontSize: "22px" }}>{playerName}</h2>
           <p style={{ color: C.accent, fontSize: "13px", marginTop: "4px" }}>You&apos;re in!</p>
         </div>
 
@@ -337,7 +333,7 @@ export default function JoinWithCodePage() {
           borderRadius: "16px", padding: "16px", marginBottom: "24px",
         }}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "12px" }}>
-            <span style={{ fontFamily: "'Syne', sans-serif", fontWeight: 700, fontSize: "14px" }}>Lobby</span>
+            <span style={{ fontFamily: DISPLAY, fontWeight: 700, fontSize: "14px" }}>Lobby</span>
             <span style={{
               fontSize: "11px", padding: "2px 10px", borderRadius: "999px",
               background: C.surface2, border: `1px solid ${C.border}`, color: C.muted,
@@ -354,7 +350,7 @@ export default function JoinWithCodePage() {
                 <div style={{
                   width: "28px", height: "28px", borderRadius: "50%",
                   display: "flex", alignItems: "center", justifyContent: "center",
-                  fontFamily: "'Syne', sans-serif", fontWeight: 700, fontSize: "12px",
+                  fontFamily: DISPLAY, fontWeight: 700, fontSize: "12px",
                   background: p.id === playerId ? "rgba(0,229,176,0.15)" : C.surface,
                   color: p.id === playerId ? C.accent : C.muted,
                   border: `1px solid ${p.id === playerId ? "rgba(0,229,176,0.3)" : C.border}`,
@@ -378,7 +374,7 @@ export default function JoinWithCodePage() {
               <span style={{ fontSize: "16px" }}>⚡</span>
             </div>
           </div>
-          <p style={{ fontFamily: "'Syne', sans-serif", fontWeight: 700, fontSize: "16px", marginBottom: "6px" }}>Get Ready!</p>
+          <p style={{ fontFamily: DISPLAY, fontWeight: 700, fontSize: "16px", marginBottom: "6px" }}>Get Ready!</p>
           <p style={{ color: C.muted, fontSize: "13px", marginBottom: "20px" }}>Waiting for host to start...</p>
           <TriviaFact />
         </div>

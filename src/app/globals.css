@@ -3,25 +3,41 @@
 @tailwind utilities;
 
 :root {
-  --bg: #0a0a14;
-  --surface: #13131a;
-  --surface2: #1c1c27;
-  --border: #2a2a3a;
-  --accent: #00e5b0;
-  --accent2: #f5a623;
-  --danger: #ff4d6d;
-  --text: #f0f0f8;
-  --muted: #6b6b8a;
+  --bg: #5B21C6;
+  --surface: #2E1065;
+  --surface2: #3B1A87;
+  --border: rgba(255, 255, 255, 0.16);
+  --accent: #FFC21E;
+  --accent2: #00E0C6;
+  --danger: #FF3B5C;
+  --success: #2BD576;
+  --text: #FFFFFF;
+  --muted: #C9BEEA;
+
+  --tile-red: #E21B3C;
+  --tile-blue: #1368CE;
+  --tile-yellow: #D89E00;
+  --tile-green: #26890C;
 }
 
+/* A saturated violet-to-magenta wash, fixed so it never scrolls away.
+   This replaces the flat navy: an earlier radial-gradient experiment was
+   pulled for reading as decorative wallpaper, so this one is a directional
+   brand field rather than an ambient glow, and every surface on top of it is
+   an opaque card with its own edge. Keep cards opaque — translucent panels
+   over this gradient are what made the old version read as wallpaper. */
 body {
-  /* Flat deep navy — the radial gradient experiment read as decorative
-     wallpaper rather than ambient mood, per playtest feedback. The
-     game-feel now lives in the result moments and finished screen, not
-     in the background. */
-  background-color: #0a0a14;
-  color: #f0f0f8;
-  font-family: 'DM Sans', sans-serif;
+  background: linear-gradient(160deg, #7B2FF7 0%, #9D28D9 40%, #F107A3 100%)
+    fixed;
+  background-color: #7B2FF7; /* fallback before the gradient paints */
+  color: var(--text);
+  font-family: var(--font-body), 'Nunito', system-ui, sans-serif;
+  min-height: 100vh;
+}
+
+h1, h2, h3, .display {
+  font-family: var(--font-display), 'Fredoka', system-ui, sans-serif;
+  letter-spacing: -0.01em;
 }
 
 @keyframes fadeUp {
@@ -103,4 +119,78 @@ button {
 html, body {
   overflow-x: hidden;
   -webkit-text-size-adjust: 100%;
+}
+
+/* ---------------------------------------------------------------- motion */
+
+/* Entrance for cards and tiles: overshoots slightly, then settles. */
+@keyframes popIn {
+  0%   { opacity: 0; transform: scale(0.85) translateY(10px); }
+  60%  { opacity: 1; transform: scale(1.04) translateY(0); }
+  100% { opacity: 1; transform: scale(1); }
+}
+
+/* Idle attention loop for the primary call to action. */
+@keyframes heartbeat {
+  0%, 100%   { transform: scale(1); }
+  8%         { transform: scale(1.04); }
+  16%        { transform: scale(1); }
+}
+
+/* Slow drift for the background blobs behind the hero. */
+@keyframes drift {
+  0%, 100% { transform: translate(0, 0) scale(1); }
+  50%      { transform: translate(18px, -22px) scale(1.06); }
+}
+
+.pop-in { animation: popIn 0.34s cubic-bezier(0.22, 1, 0.36, 1) both; }
+.heartbeat { animation: heartbeat 2.4s ease-in-out infinite; }
+.drift { animation: drift 14s ease-in-out infinite; }
+
+/* Stagger helpers so a row of tiles arrives one after another. */
+.d1 { animation-delay: 0.05s; }
+.d2 { animation-delay: 0.10s; }
+.d3 { animation-delay: 0.15s; }
+.d4 { animation-delay: 0.20s; }
+
+/* ------------------------------------------------- pressable game buttons */
+
+/* Buttons carry a solid bottom edge (0 6px 0) rather than a blur, so they
+   read as physical keys. Pressing one collapses that edge and moves the
+   button down by the same amount, so the whole control sinks in place. */
+.btn-3d {
+  transform: translateY(0);
+  will-change: transform;
+}
+.btn-3d:hover:not(:disabled) {
+  filter: brightness(1.07);
+  transform: translateY(-2px);
+}
+.btn-3d:active:not(:disabled) {
+  transform: translateY(4px);
+  box-shadow: 0 2px 0 var(--btn-edge, rgba(0, 0, 0, 0.35)),
+    0 4px 10px rgba(23, 4, 56, 0.3) !important;
+}
+/* A disabled button normally greys out — except where the disabled state IS
+   the message. Answer tiles are disabled once the question resolves, but they
+   still have to show green-correct / red-wrong at full strength, so they opt
+   out with data-keep-color. */
+.btn-3d:disabled:not([data-keep-color]) {
+  filter: saturate(0.4) brightness(0.8);
+  cursor: not-allowed;
+}
+.btn-3d:disabled {
+  cursor: default;
+}
+
+/* Honour a reduced-motion preference: keep colour and depth, drop the
+   looping animation and the travel. */
+@media (prefers-reduced-motion: reduce) {
+  .pop-in, .heartbeat, .drift, .fade-up, .spin {
+    animation: none !important;
+  }
+  .btn-3d:hover:not(:disabled), .btn-3d:active:not(:disabled) {
+    transform: none;
+  }
+  * { transition-duration: 0.01ms !important; }
 }

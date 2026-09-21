@@ -1,5 +1,24 @@
 import type { Metadata } from "next";
+import { Fredoka, Nunito } from "next/font/google";
 import "./globals.css";
+
+// Self-hosted by next/font at build time: no layout shift, no render-blocking
+// request to Google, and it drops the <link> that triggered Next's
+// no-page-custom-font warning. Exposed as CSS variables so globals.css and
+// the inline styles in src/lib/theme.ts can both reach them.
+const display = Fredoka({
+  subsets: ["latin"],
+  weight: ["500", "600", "700"],
+  variable: "--font-display",
+  display: "swap",
+});
+
+const body = Nunito({
+  subsets: ["latin"],
+  weight: ["400", "600", "700", "800"],
+  variable: "--font-body",
+  display: "swap",
+});
 
 export const metadata: Metadata = {
   title: "Fanatic — AI-Powered Trivia for Obsessives",
@@ -8,12 +27,7 @@ export const metadata: Metadata = {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en">
-      <head>
-        <link rel="preconnect" href="https://fonts.googleapis.com" />
-        <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
-        <link href="https://fonts.googleapis.com/css2?family=Syne:wght@700;800&family=DM+Sans:opsz,wght@9..40,400;9..40,500&display=swap" rel="stylesheet" />
-      </head>
+    <html lang="en" className={`${display.variable} ${body.variable}`}>
       <body>{children}</body>
     </html>
   );

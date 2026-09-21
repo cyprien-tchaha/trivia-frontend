@@ -8,16 +8,15 @@ import { gameSocket } from "@/lib/socket";
 import { useGameStore } from "@/store/gameStore";
 import { Player } from "@/types";
 import TitleMultiSelect, { SelectedTitle, TitleSearchCategory } from "@/components/TitleMultiSelect";
+import { BODY, C, DISPLAY } from "@/lib/theme";
 
-const C = {
-  bg: "#0a0a0f", surface: "#13131a", surface2: "#1c1c27",
-  border: "#2a2a3a", accent: "#00e5b0", accent2: "#f5a623",
-  danger: "#ff4d6d", text: "#f0f0f8", muted: "#6b6b8a",
-};
+/** Darker gold for the CTA's bottom edge. */
+const GOLD_EDGE = "#C48A00";
+
 
 const difficultyLabel = ["", "Easy", "Medium", "Hard", "Expert", "Master"];
 const difficultyDesc = ["", "Beginner friendly", "Some knowledge needed", "You should know this well", "Deep fan territory", "Obsessive only"];
-const difficultyColor = ["", "#00e5b0", "#6ee7b7", "#f5a623", "#f97316", "#ff4d6d"];
+const difficultyColor = ["", "#FFC21E", "#6ee7b7", "#FF8A3D", "#f97316", "#FF3B5C"];
 
 function HostPageInner() {
   const router = useRouter();
@@ -141,20 +140,20 @@ function HostPageInner() {
     width: "100%", padding: "12px 16px",
     background: C.surface2, border: `1px solid ${C.border}`,
     borderRadius: "10px", color: C.text, fontSize: "15px",
-    fontFamily: "'DM Sans', sans-serif", outline: "none",
+    fontFamily: BODY, outline: "none",
   };
 
   if (step === "setup") {
     return (
       <main style={{
-        minHeight: "100vh", background: C.bg, display: "flex",
+        minHeight: "100vh", background: "transparent", display: "flex",
         flexDirection: "column", alignItems: "center", justifyContent: "center",
-        padding: "24px", fontFamily: "'DM Sans', sans-serif",
+        padding: "24px", fontFamily: BODY,
       }}>
         <div style={{ width: "100%", maxWidth: "440px" }}>
           <Link href="/" style={{ color: C.muted, fontSize: "14px", textDecoration: "none", display: "block", marginBottom: "32px" }}>← Back</Link>
 
-          <h1 style={{ fontFamily: "'Syne', sans-serif", fontSize: "36px", fontWeight: 800, marginBottom: "4px" }}>
+          <h1 style={{ fontFamily: DISPLAY, fontSize: "36px", fontWeight: 800, marginBottom: "4px" }}>
             <span style={{ color: C.accent }}>fan</span><span style={{ color: C.text }}>atic</span>
           </h1>
           <p style={{ color: C.muted, fontSize: "14px", marginBottom: "32px" }}>Set up your game session</p>
@@ -181,7 +180,7 @@ function HostPageInner() {
                 {(["anime", "tv_shows", "movies"] as const).map((cat) => (
                   <button key={cat} onClick={() => setCategory(cat)} style={{
                     padding: "12px", borderRadius: "10px", fontSize: "14px", fontWeight: 600,
-                    fontFamily: "'Syne', sans-serif", cursor: "pointer", transition: "all 0.15s",
+                    fontFamily: DISPLAY, cursor: "pointer", transition: "all 0.15s",
                     background: category === cat ? "rgba(0,229,176,0.1)" : C.surface2,
                     border: `1.5px solid ${category === cat ? C.accent : C.border}`,
                     color: category === cat ? C.accent : C.muted,
@@ -230,7 +229,7 @@ function HostPageInner() {
                 {[1, 2, 3, 4, 5].map((d) => (
                   <button key={d} onClick={() => setDifficulty(d)} style={{
                     padding: "10px", borderRadius: "10px", fontSize: "14px", fontWeight: 700,
-                    fontFamily: "'Syne', sans-serif", cursor: "pointer",
+                    fontFamily: DISPLAY, cursor: "pointer",
                     background: difficulty === d ? "rgba(0,229,176,0.1)" : C.surface2,
                     border: `1.5px solid ${difficulty === d ? difficultyColor[d] : C.border}`,
                     color: difficulty === d ? difficultyColor[d] : C.muted,
@@ -251,7 +250,7 @@ function HostPageInner() {
                 {[5, 10, 15, 20].map((n) => (
                   <button key={n} onClick={() => setQuestionCount(n)} style={{
                     padding: "10px", borderRadius: "10px", fontSize: "14px", fontWeight: 700,
-                    fontFamily: "'Syne', sans-serif", cursor: "pointer",
+                    fontFamily: DISPLAY, cursor: "pointer",
                     background: questionCount === n ? "rgba(0,229,176,0.1)" : C.surface2,
                     border: `1.5px solid ${questionCount === n ? C.accent : C.border}`,
                     color: questionCount === n ? C.accent : C.muted,
@@ -266,11 +265,12 @@ function HostPageInner() {
             </p>
 
             {/* Submit */}
-            <button onClick={createGame} disabled={loading} style={{
-              width: "100%", padding: "16px", borderRadius: "12px", fontSize: "15px", fontWeight: 700,
-              fontFamily: "'Syne', sans-serif", cursor: loading ? "not-allowed" : "pointer",
-              background: loading ? "rgba(0,229,176,0.4)" : C.accent,
-              color: "#0a0a0f", border: "none",
+            <button onClick={createGame} disabled={loading} className="btn-3d" style={{
+              width: "100%", padding: "20px", borderRadius: "20px", fontSize: "20px", fontWeight: 700,
+              fontFamily: DISPLAY, cursor: loading ? "not-allowed" : "pointer",
+              background: C.accent, color: "#3B1A00", border: "none",
+              boxShadow: `0 6px 0 ${GOLD_EDGE}, 0 12px 24px rgba(23,4,56,0.35)`,
+              ["--btn-edge" as string]: GOLD_EDGE,
               display: "flex", alignItems: "center", justifyContent: "center", gap: "8px",
             }}>
               {loading ? "Creating..." : "Create Game →"}
@@ -284,9 +284,9 @@ function HostPageInner() {
   // Lobby
   return (
     <main style={{
-      minHeight: "100vh", background: C.bg, display: "flex",
+      minHeight: "100vh", background: "transparent", display: "flex",
       flexDirection: "column", alignItems: "center", justifyContent: "center",
-      padding: "24px", fontFamily: "'DM Sans', sans-serif",
+      padding: "24px", fontFamily: BODY,
     }}>
       <div style={{ width: "100%", maxWidth: "440px" }}>
 
@@ -302,7 +302,7 @@ function HostPageInner() {
           }} />
           <p style={{ fontSize: "11px", letterSpacing: "0.15em", textTransform: "uppercase", color: C.muted, marginBottom: "12px" }}>Game Code</p>
           <p style={{
-            fontFamily: "'Syne', sans-serif", fontWeight: 800,
+            fontFamily: DISPLAY, fontWeight: 800,
             fontSize: "clamp(2rem, 12vw, 3.5rem)", letterSpacing: "0.12em",
             color: C.accent, lineHeight: 1, marginBottom: "12px",
             wordBreak: "break-all",
@@ -347,7 +347,7 @@ function HostPageInner() {
           borderRadius: "16px", padding: "16px", marginBottom: "12px",
         }}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "12px" }}>
-            <span style={{ fontFamily: "'Syne', sans-serif", fontWeight: 700, fontSize: "14px" }}>Players</span>
+            <span style={{ fontFamily: DISPLAY, fontWeight: 700, fontSize: "14px" }}>Players</span>
             <span style={{
               fontSize: "11px", padding: "2px 10px", borderRadius: "999px",
               background: C.surface2, border: `1px solid ${C.border}`, color: C.muted,
@@ -369,7 +369,7 @@ function HostPageInner() {
                   <div style={{
                     width: "32px", height: "32px", borderRadius: "50%",
                     display: "flex", alignItems: "center", justifyContent: "center",
-                    fontFamily: "'Syne', sans-serif", fontWeight: 700, fontSize: "13px",
+                    fontFamily: DISPLAY, fontWeight: 700, fontSize: "13px",
                     background: "rgba(0,229,176,0.1)", color: C.accent,
                     border: "1px solid rgba(0,229,176,0.25)",
                   }}>{p.name[0].toUpperCase()}</div>
@@ -422,7 +422,7 @@ function HostPageInner() {
             <>
               <svg className="spin" width="16" height="16" viewBox="0 0 24 24" fill="none" style={{ flexShrink: 0 }}>
                 <circle cx="12" cy="12" r="10" stroke="rgba(0,229,176,0.3)" strokeWidth="3" />
-                <path d="M12 2a10 10 0 0 1 10 10" stroke="#00e5b0" strokeWidth="3" strokeLinecap="round" />
+                <path d="M12 2a10 10 0 0 1 10 10" stroke="#FFC21E" strokeWidth="3" strokeLinecap="round" />
               </svg>
               <span style={{ fontSize: "13px", color: C.accent }}>Generating questions with AI...</span>
             </>
@@ -437,9 +437,9 @@ function HostPageInner() {
         {/* Start button — solo allowed once questions ready */}
         <button onClick={startGame} disabled={!questionsReady} style={{
           width: "100%", padding: "16px", borderRadius: "12px", fontSize: "15px", fontWeight: 700,
-          fontFamily: "'Syne', sans-serif", border: "none",
+          fontFamily: DISPLAY, border: "none",
           background: !questionsReady ? C.surface2 : C.accent,
-          color: !questionsReady ? C.muted : "#0a0a0f",
+          color: !questionsReady ? C.muted : "#2E1065",
           cursor: !questionsReady ? "not-allowed" : "pointer",
         }}>
           {!questionsReady
